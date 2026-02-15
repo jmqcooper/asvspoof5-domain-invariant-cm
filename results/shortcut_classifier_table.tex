@@ -1,0 +1,41 @@
+% Shortcut Classifier Results
+% Logistic regression using 5 shortcut features from ASVspoof5 §4.2
+
+\begin{table}[h]
+\centering
+\caption{Shortcut classifier performance across data splits. Features: peak amplitude, total energy, total duration, leading/trailing non-speech duration.}
+\label{tab:shortcut-classifier}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Split} & \textbf{Accuracy} & \textbf{AUC} & \textbf{EER} \\
+\midrule
+Train & 82.6\% & 0.903 & 17.7\% \\
+Dev   & 24.5\% & 0.451 & 53.6\% \\
+Eval  & 20.4\% & 0.483 & 52.7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Feature coefficients table
+\begin{table}[h]
+\centering
+\caption{Feature coefficients from shortcut classifier (logistic regression).}
+\label{tab:shortcut-coefficients}
+\begin{tabular}{lc}
+\toprule
+\textbf{Feature} & \textbf{Coefficient} \\
+\midrule
+Peak amplitude     & $-0.663$ \\
+Total energy       & $-0.499$ \\
+Total duration     & $-1.104$ \\
+Leading silence    & $-0.300$ \\
+Trailing silence   & $-0.630$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Interpretation:
+% These five shortcut features are strongly predictive in train (82.6% acc, 0.903 AUC)
+% but are non-predictive on dev/eval (~50% EER, ~0.45 AUC), indicating they are
+% train-specific artifacts. The OOD performance gap is NOT primarily explained by
+% these five shortcut artifacts (ASVspoof5 §4.2).

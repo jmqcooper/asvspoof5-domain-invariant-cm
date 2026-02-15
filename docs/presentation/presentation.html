@@ -552,6 +552,57 @@
                 </div>
             </section>
 
+            <!-- Shortcut Classifier -->
+            <section>
+                <h2>Bounding Confounds: Shortcut Classifier</h2>
+                <div class="rq-box" style="font-size: 0.95em;">
+                    Are shortcuts (duration, energy, silence) explaining the OOD gap?
+                </div>
+                <div class="two-col" style="margin-top: 1em;">
+                    <div>
+                        <table class="data">
+                            <tr>
+                                <th>Split</th>
+                                <th>Accuracy</th>
+                                <th>AUC</th>
+                                <th>EER</th>
+                            </tr>
+                            <tr class="highlight">
+                                <td>Train</td>
+                                <td><strong>82.6%</strong></td>
+                                <td>0.903</td>
+                                <td>17.7%</td>
+                            </tr>
+                            <tr>
+                                <td>Dev</td>
+                                <td>24.5%</td>
+                                <td>0.451</td>
+                                <td>53.6%</td>
+                            </tr>
+                            <tr>
+                                <td>Eval</td>
+                                <td>20.4%</td>
+                                <td>0.483</td>
+                                <td>52.7%</td>
+                            </tr>
+                        </table>
+                        <p class="small" style="margin-top: 0.5em;">
+                            5 features from ASVspoof5 §4.2:<br>
+                            peak amplitude, energy, duration, leading/trailing silence
+                        </p>
+                    </div>
+                    <div>
+                        <div class="card-green card">
+                            <strong>✓ Shortcuts are TRAIN-SPECIFIC</strong><br>
+                            <span style="font-size: 0.9em;">High train accuracy (82.6%) but random on dev/eval (~50% EER)</span>
+                        </div>
+                        <div class="card-accent card" style="margin-top: 0.8em;">
+                            <strong>Conclusion:</strong> OOD gap is NOT explained by shortcut artifacts — it reflects genuine codec mismatch
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Baselines -->
             <section>
                 <h2>Baseline Comparison</h2>

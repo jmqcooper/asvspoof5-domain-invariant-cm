@@ -629,40 +629,73 @@
             
             <!-- 15. Results -->
             <section>
-                <h2>Results</h2>
-                <div class="status-pending">
-                    <strong>Awaiting DANN Run</strong><br>
-                    <span class="small">Pre-computed augmentations finished. Training run pending.</span>
-                </div>
-                <h3 style="margin-top: 0.8em;">Evaluation Plan</h3>
+                <h2>Results: Full Evaluation (680k samples)</h2>
                 <table class="data">
                     <tr>
-                        <th>Metric</th>
-                        <th>WavLM ERM</th>
-                        <th>WavLM DANN</th>
-                        <th>W2V2 ERM</th>
-                        <th>W2V2 DANN</th>
+                        <th>Model</th>
+                        <th>Dev EER</th>
+                        <th>Eval EER</th>
+                        <th>OOD Gap</th>
+                        <th>minDCF</th>
+                    </tr>
+                    <tr style="background: #dcfce7;">
+                        <td><strong>WavLM DANN</strong></td>
+                        <td>4.76%</td>
+                        <td><strong>7.34%</strong></td>
+                        <td><strong>+54%</strong></td>
+                        <td><strong>0.585</strong></td>
                     </tr>
                     <tr>
-                        <td>EER (overall)</td>
-                        <td>~4%*</td>
-                        <td>TBD</td>
-                        <td>~4%*</td>
-                        <td>TBD</td>
+                        <td>WavLM ERM</td>
+                        <td>3.26%</td>
+                        <td>8.47%</td>
+                        <td>+160%</td>
+                        <td>0.639</td>
                     </tr>
                     <tr>
-                        <td>minDCF</td>
-                        <td>TBD</td>
-                        <td>TBD</td>
-                        <td>TBD</td>
-                        <td>TBD</td>
+                        <td>W2V2 DANN</td>
+                        <td>4.45%</td>
+                        <td>14.33%</td>
+                        <td>+222%</td>
+                        <td>1.000</td>
                     </tr>
                     <tr>
-                        <td>Per-codec EER</td>
-                        <td colspan="4" class="muted"><em>Key test for H1 — improvement on worst codecs</em></td>
+                        <td>W2V2 ERM</td>
+                        <td>4.24%</td>
+                        <td>15.30%</td>
+                        <td>+261%</td>
+                        <td>1.000</td>
                     </tr>
                 </table>
-                <p class="small">*Preliminary ERM results from Wave 5; models overfit from epoch 1.</p>
+                <div class="card card-accent" style="margin-top: 0.8em;">
+                    <strong>Key finding:</strong> DANN reduces OOD gap from +160% to +54% (WavLM). The trade-off: slightly higher dev EER (3.26% → 4.76%) for significantly better generalization.
+                </div>
+                <p class="small" style="margin-top: 0.5em;">W2V2 minDCF saturates at 1.0 due to over-confident score distributions (threshold ≈ 0.9999).</p>
+            </section>
+            
+            <!-- 15b. Codec Augmentation Visualization -->
+            <section>
+                <h2>Codec Augmentation: Sanity Check</h2>
+                <p>Visualization confirms augmentation pipeline applies realistic codec artifacts:</p>
+                <div class="two-col" style="margin-top: 0.5em;">
+                    <div class="col">
+                        <h3>Q1 (Low Bitrate: MP3 64kbps, AAC 32kbps)</h3>
+                        <p style="font-size: 0.8em;">
+                            <em>[augmentation_examples_q1.png]</em><br>
+                            Severe compression artifacts visible in difference spectrograms. AAC shows more pronounced distortion than MP3, particularly in 2-7 kHz range.
+                        </p>
+                    </div>
+                    <div class="col">
+                        <h3>Q3 (Medium Bitrate: MP3 128kbps, AAC 96kbps)</h3>
+                        <p style="font-size: 0.8em;">
+                            <em>[augmentation_examples.png]</em><br>
+                            Moderate artifacts. Quality-dependent nature of codec distortion — training samples uniformly across Q1-Q5.
+                        </p>
+                    </div>
+                </div>
+                <div class="card" style="margin-top: 0.8em;">
+                    <strong>Evidence:</strong> ~50% augmentation rate confirmed in training logs. These artifacts represent the domain shift DANN learns to be invariant to.
+                </div>
             </section>
             
             <!-- 16. Domain Probe Findings -->
@@ -736,34 +769,66 @@
                 </ul>
             </section>
             
-            <!-- 18. Status -->
+            <!-- 18. ERM+Aug Ablation -->
+            <section>
+                <h2>Ablation: ERM+Augmentation</h2>
+                <div class="card card-accent" style="margin-bottom: 0.8em;">
+                    <strong>Question:</strong> Is DANN's improvement from the adversarial objective, or just from seeing augmented data?
+                </div>
+                <h3>Initial Bug Discovery</h3>
+                <ul style="font-size: 0.85em;">
+                    <li>Original ERM+Aug runs showed <strong>0% augmentation rate</strong> — FFmpeg on Snellius missing codec encoders</li>
+                    <li>Added startup validation: fail-fast if ffmpeg lacks required encoders</li>
+                    <li>Fixed with <code>module load 2024; module load FFmpeg/7.0.2-GCCcore-13.3.0</code></li>
+                </ul>
+                <h3 style="margin-top: 0.6em;">Rerun Status</h3>
+                <table class="data">
+                    <tr>
+                        <th>Model</th>
+                        <th>Aug Rate</th>
+                        <th>Status</th>
+                    </tr>
+                    <tr>
+                        <td>WavLM ERM+Aug</td>
+                        <td>~50%</td>
+                        <td><span class="tag tag-amber">Training (epoch 3)</span></td>
+                    </tr>
+                    <tr>
+                        <td>W2V2 ERM+Aug</td>
+                        <td>~50%</td>
+                        <td><span class="tag tag-amber">Training (epoch 3)</span></td>
+                    </tr>
+                </table>
+                <p class="small" style="margin-top: 0.5em;">Expected: If ERM+Aug ≈ ERM → DANN benefit is from adversarial objective, not just augmentation exposure.</p>
+            </section>
+            
+            <!-- 19. Status -->
             <section>
                 <h2>Status & Next Steps</h2>
                 <div class="two-col">
                     <div class="col">
-                        <h3>Completed</h3>
+                        <h3>Completed ✓</h3>
                         <ul class="checklist">
-                            <li class="done">Full ERM + DANN codebase</li>
-                            <li class="done">Multi-head domain discriminator</li>
-                            <li class="done">Pre-compute augmentation pipeline</li>
-                            <li class="done">Domain probe diagnostic</li>
-                            <li class="done">W&B integration</li>
-                            <li class="done">Snellius job scripts</li>
-                            <li class="done">60+ unit tests</li>
+                            <li class="done">Full ERM + DANN training & eval</li>
+                            <li class="done">680k eval set evaluation</li>
+                            <li class="done">Per-codec EER breakdown</li>
+                            <li class="done">Domain probe analysis (RQ3)</li>
+                            <li class="done">CKA layer analysis (RQ4)</li>
+                            <li class="done">Augmentation visualization</li>
+                            <li class="done">Bootstrap confidence intervals</li>
                         </ul>
                     </div>
                     <div class="col">
                         <h3>In Progress</h3>
                         <ul class="checklist">
-                            <li class="pending">Augmentation pre-compute (running)</li>
-                            <li class="pending">Optimized DANN training run</li>
+                            <li class="pending">ERM+Aug ablation rerun</li>
                         </ul>
-                        <h3 style="margin-top: 0.6em;">Upcoming</h3>
+                        <h3 style="margin-top: 0.6em;">Planned Extensions</h3>
                         <ul class="checklist">
-                            <li class="future">Full eval set evaluation</li>
-                            <li class="future">Per-codec breakdown</li>
-                            <li class="future">Interpretability experiments</li>
-                            <li class="future">Thesis writing</li>
+                            <li class="future">Multi-seed runs (statistical significance)</li>
+                            <li class="future">Shuffled-domain control</li>
+                            <li class="future">Shortcut classifier (bound confounds)</li>
+                            <li class="future">Seen-like vs unseen codec analysis</li>
                         </ul>
                     </div>
                 </div>

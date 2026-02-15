@@ -162,7 +162,7 @@ def main():
             df = pd.read_parquet(manifest_path)
         elif manifest_path.suffix in ['.txt', '.tsv']:
             # ASVspoof5 protocol format (whitespace-separated)
-            df = pd.read_csv(manifest_path, sep=r'\s+', header=None,
+            logger.info(f"  Sampled {args.max_samples} from original dataset")
                            names=['speaker_id', 'flac_file', 'gender', 'attack_label', 'key'])
         else:
             df = pd.read_parquet(manifest_path)  # Default to parquet

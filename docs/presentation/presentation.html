@@ -255,7 +255,7 @@
             <section>
                 <h2>Research Question</h2>
                 <div class="rq-box" style="font-size: 1.2em; margin-top: 1em;">
-                    Does domain invariance learned on synthetic codec augmentation (MP3/AAC) transfer to real benchmark codec conditions (C01-C11)?
+                    Do speech deepfake detectors use codec information as a shortcut, and if so, can DANN mitigate shortcut learning?
                 </div>
                 <div style="margin-top: 1.5em;">
                     <h3>Sub-questions</h3>
@@ -298,6 +298,7 @@
                         </div>
                         <div class="card-accent card" style="margin-top: 0.8em;">
                             Detectors overfit to codec-free artifacts → fail on compressed audio
+                            <p class="smaller" style="margin-top: 0.4em;">Prior work and ASVspoof5 §4.2 document shortcut artifacts in anti-spoofing systems; codec mismatch between training and deployment degrades detector performance (Müller et al. 2022; Wang et al. 2024).</p>
                         </div>
                     </div>
                 </div>
@@ -360,7 +361,54 @@
                         <div class="card-accent card" style="margin-top: 0.8em;">
                             <strong>Key insight:</strong> Even with only 2 synthetic codecs, DANN achieves significant OOD improvement
                         </div>
+                        <div class="card" style="margin-top: 0.5em;">
+                            <strong>Important:</strong> Training uses synthetic codec labels (MP3/AAC via FFmpeg). Evaluation uses real ASVspoof5 codec IDs (C01-C11). This is transfer of learned invariance to unseen real-world codecs — not direct supervised domain adaptation.
+                        </div>
                     </div>
+                </div>
+            </section>
+
+            <!-- Baselines (moved before Main Results per supervisor feedback) -->
+            <section>
+                <h2>Baseline Comparison: SSL >> Classical</h2>
+                <table class="data">
+                    <tr>
+                        <th>Model</th>
+                        <th>Type</th>
+                        <th>Eval EER</th>
+                    </tr>
+                    <tr>
+                        <td>WavLM ERM</td>
+                        <td>SSL baseline</td>
+                        <td><strong>8.47%</strong></td>
+                    </tr>
+                    <tr>
+                        <td>W2V2 ERM</td>
+                        <td>SSL baseline</td>
+                        <td>15.30%</td>
+                    </tr>
+                    <tr>
+                        <td>TRILLsson Logistic</td>
+                        <td>Non-semantic</td>
+                        <td>23.75%</td>
+                    </tr>
+                    <tr>
+                        <td>TRILLsson MLP</td>
+                        <td>Non-semantic</td>
+                        <td>25.65%</td>
+                    </tr>
+                    <tr>
+                        <td>LFCC-GMM</td>
+                        <td>Classical</td>
+                        <td>43.33%</td>
+                    </tr>
+                </table>
+                <p class="small" style="margin-top: 0.8em; text-align: center;">
+                    SSL backbones significantly outperform non-semantic and classical approaches.<br>
+                    Next: Can DANN further improve these SSL baselines?
+                </p>
+                <div class="card" style="margin-top: 0.5em;">
+                    <strong>Note:</strong> TRILLsson also shows a small OOD gap — its paralinguistic features are too generic to overfit to domain-specific artifacts, but overall detection performance is poor (23-25% EER).
                 </div>
             </section>
 
@@ -427,6 +475,9 @@
                         <span class="label">Best Eval EER</span>
                     </div>
                 </div>
+                <p class="small" style="text-align: center; margin-top: 0.5em;">
+                    Absolute improvement: −1.13 EER points, −0.054 minDCF
+                </p>
             </section>
 
             <!-- RQ1: OOD Gap -->
@@ -484,6 +535,9 @@
                         <div class="figure-caption">Ablation: component patching</div>
                     </div>
                 </div>
+                <p class="small" style="text-align: center; margin-top: 0.3em;">
+                    CKA computed on WavLM. Low similarity at layer 11 reflects divergent learned mixing weights — backbone layers are frozen and identical between ERM and DANN.
+                </p>
             </section>
 
             <!-- RQ4: Representation Visualization -->
@@ -501,6 +555,9 @@
                         <strong>DANN:</strong> Mixed/overlapping representations
                     </div>
                 </div>
+                <p class="small" style="text-align: center; margin-top: 0.3em;">
+                    Key observation: ERM shows tighter codec-specific clusters (particularly MP3/AAC), while DANN representations overlap across codecs. Differences subtle in static projection — see per-codec EER for quantitative evidence.
+                </p>
             </section>
 
             <!-- Key Ablation: ERM+Aug -->
@@ -546,9 +603,15 @@
                         <td>18.02%</td>
                         <td><span class="tag tag-red">+18%</span></td>
                     </tr>
+                    <tr class="highlight">
+                        <td>DANN</td>
+                        <td>W2V2</td>
+                        <td>14.33%</td>
+                        <td><span class="tag tag-green">−6%</span></td>
+                    </tr>
                 </table>
                 <div class="card-accent card" style="margin-top: 0.8em;">
-                    <strong>Conclusion:</strong> Augmentation helps WavLM (−6%) but DANN provides additional benefit (−13%). For W2V2, augmentation hurts — adversarial training is key.
+                    <strong>Conclusion:</strong> Augmentation helps WavLM (−6%) but DANN provides additional benefit (−13%). For W2V2, augmentation hurts (+18%) but DANN still improves over ERM (−6%) — adversarial training is key regardless of backbone.
                 </div>
             </section>
 
@@ -602,55 +665,13 @@
                         <div class="card-accent card" style="margin-top: 0.8em;">
                             <strong>Conclusion:</strong> OOD gap is NOT primarily explained by these five shortcut artifacts (ASVspoof5 §4.2)
                         </div>
+                        <p class="smaller" style="margin-top: 0.4em;">All 5 features used as continuous values (not binarized). Dev/eval AUC ≈ 0.5 indicates non-predictive (values slightly below 0.5 reflect minor label distribution effects, not inverse prediction).</p>
                     </div>
                 </div>
             </section>
 
-            <!-- Baselines -->
-            <section>
-                <h2>Baseline Comparison</h2>
-                <table class="data">
-                    <tr>
-                        <th>Model</th>
-                        <th>Type</th>
-                        <th>Eval EER</th>
-                    </tr>
-                    <tr class="highlight">
-                        <td><strong>WavLM DANN</strong></td>
-                        <td>SSL + DANN</td>
-                        <td><strong>7.34%</strong></td>
-                    </tr>
-                    <tr>
-                        <td>WavLM ERM</td>
-                        <td>SSL baseline</td>
-                        <td>8.47%</td>
-                    </tr>
-                    <tr>
-                        <td>W2V2 DANN</td>
-                        <td>SSL + DANN</td>
-                        <td>14.33%</td>
-                    </tr>
-                    <tr>
-                        <td>TRILLsson Logistic</td>
-                        <td>Non-semantic</td>
-                        <td>23.75%</td>
-                    </tr>
-                    <tr>
-                        <td>TRILLsson MLP</td>
-                        <td>Non-semantic</td>
-                        <td>25.65%</td>
-                    </tr>
-                    <tr>
-                        <td>LFCC-GMM</td>
-                        <td>Classical</td>
-                        <td>43.33%</td>
-                    </tr>
-                </table>
-                <p class="small" style="margin-top: 0.8em; text-align: center;">
-                    SSL backbones significantly outperform non-semantic and classical approaches.<br>
-                    DANN provides additional improvement on top of strong SSL baseline.
-                </p>
-            </section>
+            <!-- Baselines (moved after Novelty) -->
+
 
             <!-- Novelty -->
             <section>
@@ -705,7 +726,7 @@
                 <h2>Future Work</h2>
                 <ul>
                     <li><strong>Partial backbone unfreezing</strong><br>
-                        <span class="small">Allow DANN to affect deeper layers</span></li>
+                        <span class="small">Unfreezing the top 2-3 transformer layers would allow DANN's adversarial gradient to reshape backbone representations directly. CKA analysis shows layer 11 already diverges significantly in mixing weights alone — even partial unfreezing could yield substantial further invariance gains.</span></li>
                     <li><strong>More codec diversity</strong><br>
                         <span class="small">Neural codecs (Encodec), device/channel effects</span></li>
                     <li><strong>Compare with MMD, CORAL</strong><br>
@@ -748,6 +769,9 @@
                         <span class="label">OOD Reduction</span>
                     </div>
                 </div>
+                <p class="smaller" style="text-align: center; margin-top: 0.8em;">
+                    All results from single training seeds. Bootstrap 95% CIs computed on evaluation set.
+                </p>
             </section>
 
 
@@ -845,6 +869,58 @@
                 </p>
             </section>
 
+            <!-- Appendix: Codec Family Analysis -->
+            <section>
+                <h2>Appendix: Codec Family Analysis</h2>
+                <table class="data">
+                    <tr>
+                        <th>Codec Family</th>
+                        <th>Codecs</th>
+                        <th>ERM EER (%)</th>
+                        <th>DANN EER (%)</th>
+                        <th>Δ</th>
+                    </tr>
+                    <tr>
+                        <td>Uncoded</td>
+                        <td>NONE</td>
+                        <td>5.68</td>
+                        <td><strong>4.19</strong></td>
+                        <td class="small" style="color:#16a34a;">−26%</td>
+                    </tr>
+                    <tr>
+                        <td>Simulated</td>
+                        <td>C05 mp3, C06 m4a</td>
+                        <td>6.47</td>
+                        <td><strong>4.99</strong></td>
+                        <td class="small" style="color:#16a34a;">−23%</td>
+                    </tr>
+                    <tr>
+                        <td>VoIP</td>
+                        <td>C01 opus, C03 speex, C08 opus_nb, C10 speex_nb</td>
+                        <td>9.13</td>
+                        <td><strong>8.39</strong></td>
+                        <td class="small" style="color:#16a34a;">−8%</td>
+                    </tr>
+                    <tr>
+                        <td>Telephony</td>
+                        <td>C02 amr, C09 amr_nb</td>
+                        <td>7.93</td>
+                        <td><strong>7.19</strong></td>
+                        <td class="small" style="color:#16a34a;">−9%</td>
+                    </tr>
+                    <tr>
+                        <td>Neural/Other</td>
+                        <td>C04 encodec, C07 mp3+enc, C11 device</td>
+                        <td>10.46</td>
+                        <td><strong>9.11</strong></td>
+                        <td class="small" style="color:#16a34a;">−13%</td>
+                    </tr>
+                </table>
+                <p class="small" style="text-align: center; margin-top: 0.5em;">
+                    Family averages computed from per-codec EER. Largest gains on simulated codecs (closest to training augmentation); consistent improvement across all families.
+                </p>
+            </section>
+
             <!-- Appendix: Augmentation Visualization -->
             <section>
                 <h2>Appendix: Augmentation Sanity Check</h2>
@@ -864,6 +940,9 @@
                 <div class="card" style="margin-top: 0.8em;">
                     <strong>Confirms:</strong> Augmentation pipeline introduces realistic, quality-dependent codec distortions that DANN learns to be invariant to.
                 </div>
+                <p class="small" style="text-align: center; margin-top: 0.3em;">
+                    Spectrograms compare original audio (top), codec-processed audio (middle), and difference (bottom). Greater artifacts at low bitrates (Q1) vs medium (Q3) confirm quality-dependent distortion that DANN learns to be invariant to.
+                </p>
             </section>
 
             <!-- Thank You -->

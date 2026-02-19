@@ -474,6 +474,9 @@
                     <img src="../../figures/ood_gap.png" alt="OOD Gap Comparison">
                     <div class="figure-caption">Figure: OOD gap (Eval EER − Dev EER) for ERM vs DANN</div>
                 </div>
+                <div class="card" style="margin-top: 0.5em; font-size: 0.85em;">
+                    <strong>Interpreting OOD gaps across models:</strong> SSL models (WavLM, W2V2) learn rich representations that can latch onto domain-specific cues — high capacity leads to large OOD gaps, which DANN reduces. TRILLsson's small OOD gap reflects the opposite: its paralinguistic features are too generic to overfit to codec-specific artifacts, so it generalizes consistently — but at a much higher error rate. LFCC-GMM has a very large gap because handcrafted features are brittle under any distribution shift.
+                </div>
             </section>
 
             <!-- Slide 9: RQ2 (unchanged) -->
@@ -649,7 +652,7 @@
                         <div class="card-accent card" style="margin-top: 0.8em;">
                             <strong>Conclusion:</strong> OOD gap is NOT explained by these five shortcut artifacts (ASVspoof5 §4.2). The performance gap between dev and eval must come from something else — namely the codec domain shift.
                         </div>
-                        <p class="smaller" style="margin-top: 0.4em;">Features are used as raw continuous values in the logistic regression (not binarized into present/absent). Dev/eval AUC ≈ 0.5 confirms the features carry no predictive signal outside the training set.</p>
+                        <p class="smaller" style="margin-top: 0.4em;">Features are used as raw continuous values (e.g., exact duration in seconds, energy level) rather than binarized (present/absent). This gives the classifier maximum information — and it still fails on dev/eval, strengthening the conclusion.</p>
                     </div>
                 </div>
             </section>

@@ -167,7 +167,7 @@ sudo apt install libspeex-dev libopencore-amrnb-dev
 
 ### Historical Note
 
-Previous versions had inconsistent label conventions in some documentation and tests. These have been fixed (see `docs/audit_report_full.md`).
+Previous versions had inconsistent label conventions in some documentation and tests. These have been fixed .
 
 ---
 

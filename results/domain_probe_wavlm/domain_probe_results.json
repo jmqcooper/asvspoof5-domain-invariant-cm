@@ -1,0 +1,511 @@
+{
+  "backbone": "wavlm",
+  "pretrained": "microsoft/wavlm-base-plus",
+  "num_layers": 12,
+  "hidden_size": 768,
+  "num_original_samples": 5000,
+  "num_total_samples": 10000,
+  "data_source": "asvspoof5_train",
+  "codecs_available": [
+    "MP3",
+    "AAC",
+    "OPUS"
+  ],
+  "codecs_unavailable": [],
+  "seed": 42,
+  "binary_class_distribution": {
+    "0": 5000,
+    "1": 5000
+  },
+  "multiclass_class_distribution": {
+    "0": 5000,
+    "1": 1694,
+    "2": 1648,
+    "3": 1658
+  },
+  "per_layer": {
+    "0": {
+      "binary": {
+        "accuracy": 0.8712,
+        "accuracy_std": 0.008003749121505472,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.8795,
+          0.876,
+          0.867,
+          0.876,
+          0.8575
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.8486,
+        "accuracy_std": 0.006613622305514579,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.843,
+          0.846,
+          0.861,
+          0.8435,
+          0.8495
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "1": {
+      "binary": {
+        "accuracy": 0.8615,
+        "accuracy_std": 0.006236986451805079,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.8655,
+          0.863,
+          0.8695,
+          0.858,
+          0.8515
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.819,
+        "accuracy_std": 0.003728270376461474,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.8205,
+          0.819,
+          0.8245,
+          0.818,
+          0.813
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "2": {
+      "binary": {
+        "accuracy": 0.8470000000000001,
+        "accuracy_std": 0.011471704319759997,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.85,
+          0.8595,
+          0.8525,
+          0.8475,
+          0.8255
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.8003,
+        "accuracy_std": 0.010288828893513575,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.8155,
+          0.789,
+          0.8095,
+          0.7935,
+          0.794
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "3": {
+      "binary": {
+        "accuracy": 0.7981,
+        "accuracy_std": 0.0100915806492343,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.8015,
+          0.8115,
+          0.7885,
+          0.7845,
+          0.8045
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.7435999999999999,
+        "accuracy_std": 0.010627323275406648,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.7525,
+          0.7505,
+          0.745,
+          0.723,
+          0.747
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "4": {
+      "binary": {
+        "accuracy": 0.7182000000000001,
+        "accuracy_std": 0.002111871208194282,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.721,
+          0.719,
+          0.7155,
+          0.716,
+          0.7195
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.6798,
+        "accuracy_std": 0.002619160170741755,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.6765,
+          0.6845,
+          0.68,
+          0.679,
+          0.679
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "5": {
+      "binary": {
+        "accuracy": 0.672,
+        "accuracy_std": 0.006595452979136474,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.667,
+          0.6775,
+          0.6615,
+          0.676,
+          0.678
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.631,
+        "accuracy_std": 0.0033911649915626535,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.631,
+          0.63,
+          0.6265,
+          0.6305,
+          0.637
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "6": {
+      "binary": {
+        "accuracy": 0.6329,
+        "accuracy_std": 0.00581721582889958,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.63,
+          0.633,
+          0.626,
+          0.632,
+          0.6435
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.5980000000000001,
+        "accuracy_std": 0.002846049894151536,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.602,
+          0.5995,
+          0.5945,
+          0.595,
+          0.599
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "7": {
+      "binary": {
+        "accuracy": 0.6035999999999999,
+        "accuracy_std": 0.0075193084788429815,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.6015,
+          0.5995,
+          0.593,
+          0.61,
+          0.614
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.5690999999999999,
+        "accuracy_std": 0.003929376540877691,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.569,
+          0.573,
+          0.574,
+          0.5645,
+          0.565
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "8": {
+      "binary": {
+        "accuracy": 0.5981,
+        "accuracy_std": 0.007317103251970704,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.6125,
+          0.5965,
+          0.595,
+          0.5925,
+          0.594
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.553,
+        "accuracy_std": 0.003834057902536169,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.549,
+          0.5565,
+          0.5485,
+          0.558,
+          0.553
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "9": {
+      "binary": {
+        "accuracy": 0.5931,
+        "accuracy_std": 0.010141005867269803,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.6,
+          0.582,
+          0.587,
+          0.6095,
+          0.587
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.5557000000000001,
+        "accuracy_std": 0.0059380131357214,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.5655,
+          0.5505,
+          0.549,
+          0.555,
+          0.5585
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "10": {
+      "binary": {
+        "accuracy": 0.5970000000000001,
+        "accuracy_std": 0.010751744044572482,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.6015,
+          0.5865,
+          0.5845,
+          0.614,
+          0.5985
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.5498999999999999,
+        "accuracy_std": 0.006351377803280165,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.5465,
+          0.5475,
+          0.542,
+          0.5605,
+          0.553
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    },
+    "11": {
+      "binary": {
+        "accuracy": 0.5972999999999999,
+        "accuracy_std": 0.004621688003316541,
+        "n_classes": 2,
+        "n_splits": 5,
+        "scores": [
+          0.6015,
+          0.5935,
+          0.5905,
+          0.6025,
+          0.5985
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 5000
+        },
+        "status": "ok"
+      },
+      "multiclass": {
+        "accuracy": 0.5635999999999999,
+        "accuracy_std": 0.0076772390870676705,
+        "n_classes": 4,
+        "n_splits": 5,
+        "scores": [
+          0.5595,
+          0.565,
+          0.551,
+          0.5715,
+          0.571
+        ],
+        "class_counts": {
+          "0": 5000,
+          "1": 1694,
+          "2": 1648,
+          "3": 1658
+        },
+        "status": "ok"
+      }
+    }
+  },
+  "best_binary_accuracy": 0.8712,
+  "best_multiclass_accuracy": 0.8486,
+  "interpretation": "STRONG_SIGNAL"
+}

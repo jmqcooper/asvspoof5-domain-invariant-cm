@@ -1,0 +1,100 @@
+{
+  "analysis": "projection_layer_probe",
+  "description": "Probe projection layer outputs for domain invariance (RQ3)",
+  "split": "eval",
+  "domain_source": "protocol",
+  "n_samples": 5000,
+  "cv_folds": 5,
+  "seed": 42,
+  "timestamp": "2026-02-13T14:13:00.440844Z",
+  "checkpoints": {
+    "erm": "/projects/prjs1904/runs/wavlm_erm/checkpoints/best.pt",
+    "dann": "/projects/prjs1904/runs/wavlm_dann/checkpoints/epoch_5_patched.pt"
+  },
+  "results": {
+    "erm": {
+      "codec": {
+        "status": "ok",
+        "accuracy": 0.434,
+        "accuracy_std": 0.008899438184514804,
+        "cv_scores": [
+          0.437,
+          0.447,
+          0.438,
+          0.423,
+          0.425
+        ],
+        "n_samples": 5000,
+        "n_classes": 12,
+        "cv_folds_used": 5,
+        "class_distribution": {
+          "0": 351,
+          "1": 361,
+          "2": 327,
+          "3": 380,
+          "4": 384,
+          "5": 280,
+          "6": 341,
+          "7": 327,
+          "8": 287,
+          "9": 330,
+          "10": 330,
+          "11": 1302
+        }
+      }
+    },
+    "dann": {
+      "codec": {
+        "status": "ok",
+        "accuracy": 0.38760000000000006,
+        "accuracy_std": 0.008957678270623484,
+        "cv_scores": [
+          0.396,
+          0.385,
+          0.4,
+          0.377,
+          0.38
+        ],
+        "n_samples": 5000,
+        "n_classes": 12,
+        "cv_folds_used": 5,
+        "class_distribution": {
+          "0": 351,
+          "1": 361,
+          "2": 327,
+          "3": 380,
+          "4": 384,
+          "5": 280,
+          "6": 341,
+          "7": 327,
+          "8": 287,
+          "9": 330,
+          "10": 330,
+          "11": 1302
+        }
+      }
+    }
+  },
+  "comparison": {
+    "codec": {
+      "erm_accuracy": 0.434,
+      "dann_accuracy": 0.38760000000000006,
+      "reduction": 0.04639999999999994,
+      "relative_reduction": 0.10691244239631323,
+      "dann_is_more_invariant": true
+    }
+  },
+  "rq3_summary": {
+    "question": "Does DANN reduce domain information in learned representations?",
+    "answer": true,
+    "evidence": {
+      "codec": {
+        "erm_accuracy": 0.434,
+        "dann_accuracy": 0.38760000000000006,
+        "reduction": 0.04639999999999994,
+        "relative_reduction": 0.10691244239631323,
+        "dann_is_more_invariant": true
+      }
+    }
+  }
+}

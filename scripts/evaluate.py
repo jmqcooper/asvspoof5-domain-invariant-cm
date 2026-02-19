@@ -150,8 +150,8 @@ def parse_args():
     parser.add_argument(
         "--max-samples",
         type=int,
-        default=50000,
-        help="Maximum samples for quick-eval/subset mode",
+        default=None,
+        help="Maximum samples for evaluation (default: all samples). Implies --quick-eval if set.",
     )
     parser.add_argument(
         "--subset-seed",
@@ -163,9 +163,15 @@ def parse_args():
 
 
 def load_model_from_checkpoint(checkpoint_path: Path, device: torch.device):
-    """Load model from checkpoint (uses run_dir vocabs for head sizes)."""
+    """Load model from checkpoint (uses run_dir vocabs for head sizes).
+    
+    Auto-detects discriminator input dimension from checkpoint weights for
+    backwards compatibility with both old (post-projection, 256-dim) and 
+    new (pre-projection, 1536-dim) checkpoints.
+    """
     checkpoint = torch.load(checkpoint_path, map_location=device)
     config = checkpoint.get("config", {})
+    state_dict = checkpoint.get("model_state_dict", {})
 
     # Get vocab sizes from checkpoint or load from run dir
     run_dir = checkpoint_path.parent.parent
@@ -224,8 +230,19 @@ def load_model_from_checkpoint(checkpoint_path: Path, device: torch.device):
         dann_cfg = config.get("dann", {})
         disc_cfg = dann_cfg.get("discriminator", {})
 
-        # Discriminator taps pre-projection pooled features (e.g. 1536-dim stats pooling)
-        disc_input_dim = disc_cfg.get("input_dim", proj_input_dim)
+        # Auto-detect discriminator input dimension from checkpoint weights
+        # This provides backwards compatibility with old checkpoints trained
+        # with post-projection discriminator input (256-dim) vs new architecture
+        # that uses pre-projection input (1536-dim from stats pooling)
+        disc_weight_key = "domain_discriminator.shared.0.weight"
+        if disc_weight_key in state_dict:
+            disc_input_dim = state_dict[disc_weight_key].shape[1]
+            logger.info(f"Auto-detected discriminator input dim from checkpoint: {disc_input_dim}")
+        else:
+            # Fallback to config or default to pre-projection dim
+            disc_input_dim = disc_cfg.get("input_dim", proj_input_dim)
+            logger.info(f"Using config discriminator input dim: {disc_input_dim}")
+
         domain_discriminator = MultiHeadDomainDiscriminator(
             input_dim=disc_input_dim,
             num_codecs=num_codecs,
@@ -425,13 +442,31 @@ def log_to_wandb(
         )
 
         # Log overall metrics
-        wandb.log({
+        wandb_metrics = {
+            # Primary metrics
             f"eval/{args.split}/eer": metrics["eer"],
             f"eval/{args.split}/min_dcf": metrics["min_dcf"],
+            f"eval/{args.split}/auc": metrics["auc"],
+            f"eval/{args.split}/eer_threshold": metrics["eer_threshold"],
+
+            # Threshold-based metrics at EER operating point
+            f"eval/{args.split}/f1_macro": metrics["f1_macro"],
+            f"eval/{args.split}/precision_macro": metrics["precision_macro"],
+            f"eval/{args.split}/recall_macro": metrics["recall_macro"],
+            f"eval/{args.split}/f1_bonafide": metrics["f1_bonafide"],
+            f"eval/{args.split}/f1_spoof": metrics["f1_spoof"],
+
+            # Sample counts
             f"eval/{args.split}/n_samples": metrics["n_samples"],
             f"eval/{args.split}/n_bonafide": metrics["n_bonafide"],
             f"eval/{args.split}/n_spoof": metrics["n_spoof"],
-        })
+        }
+
+        # Add t-DCF if available
+        if metrics.get("tdcf_min") is not None:
+            wandb_metrics[f"eval/{args.split}/tdcf_min"] = metrics["tdcf_min"]
+
+        wandb.log(wandb_metrics)
 
         # Log score distribution as histogram
         bonafide_scores = df[df["y_task"] == 0]["score"].tolist()
@@ -449,17 +484,26 @@ def log_to_wandb(
                 f"eval/{args.split}/score_distribution": wandb.Image(str(score_plot_path))
             })
 
-        # Log per-domain metrics as tables
+        # Log per-domain metrics as tables with all metrics
         if codec_metrics:
-            codec_rows = [
-                {"codec": k, "eer": v["eer"], "n_samples": v["n_samples"]}
-                for k, v in codec_metrics.items()
-            ]
             codec_table = wandb.Table(
-                columns=["codec", "eer", "n_samples"],
-                data=[[r["codec"], r["eer"], r["n_samples"]] for r in codec_rows]
+                columns=["codec", "eer", "auc", "f1_macro", "n_samples", "n_bonafide", "n_spoof"],
+                data=[
+                    [k, v["eer"], v.get("auc", 0), v.get("f1_macro", 0),
+                     v["n_samples"], v.get("n_bonafide", 0), v.get("n_spoof", 0)]
+                    for k, v in codec_metrics.items()
+                ]
             )
             wandb.log({f"eval/{args.split}/per_codec": codec_table})
+
+            # Log per-codec scalar metrics for easy comparison
+            for codec_name, codec_vals in codec_metrics.items():
+                safe_name = codec_name.replace("/", "_").replace(" ", "_")
+                wandb.log({
+                    f"eval/{args.split}/codec/{safe_name}/eer": codec_vals["eer"],
+                    f"eval/{args.split}/codec/{safe_name}/auc": codec_vals.get("auc", 0),
+                    f"eval/{args.split}/codec/{safe_name}/f1_macro": codec_vals.get("f1_macro", 0),
+                })
 
             # Log codec EER plot
             codec_plot_path = output_dir / "eer_by_codec.png"
@@ -469,15 +513,24 @@ def log_to_wandb(
                 })
 
         if codec_q_metrics:
-            codec_q_rows = [
-                {"codec_q": k, "eer": v["eer"], "n_samples": v["n_samples"]}
-                for k, v in codec_q_metrics.items()
-            ]
             codec_q_table = wandb.Table(
-                columns=["codec_q", "eer", "n_samples"],
-                data=[[r["codec_q"], r["eer"], r["n_samples"]] for r in codec_q_rows]
+                columns=["codec_q", "eer", "auc", "f1_macro", "n_samples", "n_bonafide", "n_spoof"],
+                data=[
+                    [k, v["eer"], v.get("auc", 0), v.get("f1_macro", 0),
+                     v["n_samples"], v.get("n_bonafide", 0), v.get("n_spoof", 0)]
+                    for k, v in codec_q_metrics.items()
+                ]
             )
             wandb.log({f"eval/{args.split}/per_codec_q": codec_q_table})
+
+            # Log per-codec_q scalar metrics for easy comparison
+            for cq_name, cq_vals in codec_q_metrics.items():
+                safe_name = str(cq_name).replace("/", "_").replace(" ", "_")
+                wandb.log({
+                    f"eval/{args.split}/codec_q/{safe_name}/eer": cq_vals["eer"],
+                    f"eval/{args.split}/codec_q/{safe_name}/auc": cq_vals.get("auc", 0),
+                    f"eval/{args.split}/codec_q/{safe_name}/f1_macro": cq_vals.get("f1_macro", 0),
+                })
 
             # Log codec_q EER plot
             codec_q_plot_path = output_dir / "eer_by_codec_q.png"
@@ -493,9 +546,13 @@ def log_to_wandb(
         pred_table = wandb.Table(dataframe=sample_df)
         wandb.log({f"eval/{args.split}/predictions_sample": pred_table})
 
-        # Set summary
+        # Set summary with all key metrics
         wandb.run.summary[f"{args.split}_eer"] = metrics["eer"]
         wandb.run.summary[f"{args.split}_min_dcf"] = metrics["min_dcf"]
+        wandb.run.summary[f"{args.split}_auc"] = metrics["auc"]
+        wandb.run.summary[f"{args.split}_f1_macro"] = metrics["f1_macro"]
+        if metrics.get("tdcf_min") is not None:
+            wandb.run.summary[f"{args.split}_tdcf_min"] = metrics["tdcf_min"]
 
         wandb.finish()
         logger.info("Logged metrics to Wandb")
@@ -548,8 +605,9 @@ def main():
 
     # Optional quick-eval subset
     total_samples = len(dataset)
-    if args.quick_eval or (args.max_samples and args.max_samples < total_samples):
-        subset_size = min(args.max_samples, total_samples)
+    max_samples = args.max_samples if args.max_samples is not None else (50000 if args.quick_eval else total_samples)
+    if args.quick_eval or (args.max_samples is not None and args.max_samples < total_samples):
+        subset_size = min(max_samples, total_samples)
         rng = np.random.default_rng(args.subset_seed)
         subset_indices = rng.choice(total_samples, size=subset_size, replace=False)
         dataset = torch.utils.data.Subset(dataset, subset_indices)
@@ -608,8 +666,21 @@ def main():
 
     logger.info("=" * 60)
     logger.info(f"Overall metrics ({args.split}):")
-    logger.info(f"  EER: {metrics['eer']:.4f}")
+    logger.info(f"  EER: {metrics['eer']:.4f} (threshold: {metrics['eer_threshold']:.4f})")
     logger.info(f"  minDCF: {metrics['min_dcf']:.4f}")
+    logger.info(f"  AUC: {metrics['auc']:.4f}")
+    logger.info("-" * 40)
+    logger.info(f"  Metrics at EER threshold:")
+    logger.info(f"    F1 (macro): {metrics['f1_macro']:.4f}")
+    logger.info(f"    Precision (macro): {metrics['precision_macro']:.4f}")
+    logger.info(f"    Recall (macro): {metrics['recall_macro']:.4f}")
+    logger.info(f"    F1 (bonafide/spoof): {metrics['f1_bonafide']:.4f} / {metrics['f1_spoof']:.4f}")
+    logger.info("-" * 40)
+    if metrics.get('tdcf_min') is not None:
+        logger.info(f"  t-DCF (min): {metrics['tdcf_min']:.4f}")
+    else:
+        logger.info(f"  t-DCF: Not computed (ASV scores required)")
+    logger.info("-" * 40)
     logger.info(f"  Samples: {metrics['n_samples']} (bonafide: {metrics['n_bonafide']}, spoof: {metrics['n_spoof']})")
     logger.info("=" * 60)
 
@@ -640,7 +711,11 @@ def main():
             logger.info(domain_df.to_string(index=False))
 
         # Compute per-domain metrics for wandb (use normalized string labels)
-        from asvspoof5_domain_invariant_cm.evaluation.metrics import compute_eer
+        from asvspoof5_domain_invariant_cm.evaluation.metrics import (
+            compute_eer,
+            compute_auc,
+            compute_threshold_metrics,
+        )
 
         # Per-CODEC metrics
         codec_metrics = {}
@@ -650,10 +725,18 @@ def main():
                 codec_scores = df.loc[mask, "score"].values
                 codec_labels = df.loc[mask, "y_task"].values
                 if len(np.unique(codec_labels)) == 2:
-                    codec_eer, _ = compute_eer(codec_scores, codec_labels)
+                    codec_eer, codec_eer_thresh = compute_eer(codec_scores, codec_labels)
+                    codec_auc = compute_auc(codec_scores, codec_labels)
+                    codec_thresh_metrics = compute_threshold_metrics(
+                        codec_scores, codec_labels, codec_eer_thresh
+                    )
                     codec_metrics[codec_name] = {
                         "eer": float(codec_eer),
+                        "auc": float(codec_auc),
+                        "f1_macro": codec_thresh_metrics["f1_macro"],
                         "n_samples": int(mask.sum()),
+                        "n_bonafide": int((codec_labels == 0).sum()),
+                        "n_spoof": int((codec_labels == 1).sum()),
                     }
 
         # Plot EER by CODEC
@@ -672,10 +755,18 @@ def main():
                 cq_scores = df.loc[mask, "score"].values
                 cq_labels = df.loc[mask, "y_task"].values
                 if len(np.unique(cq_labels)) == 2:
-                    cq_eer, _ = compute_eer(cq_scores, cq_labels)
+                    cq_eer, cq_eer_thresh = compute_eer(cq_scores, cq_labels)
+                    cq_auc = compute_auc(cq_scores, cq_labels)
+                    cq_thresh_metrics = compute_threshold_metrics(
+                        cq_scores, cq_labels, cq_eer_thresh
+                    )
                     codec_q_metrics[codec_q_name] = {
                         "eer": float(cq_eer),
+                        "auc": float(cq_auc),
+                        "f1_macro": cq_thresh_metrics["f1_macro"],
                         "n_samples": int(mask.sum()),
+                        "n_bonafide": int((cq_labels == 0).sum()),
+                        "n_spoof": int((cq_labels == 1).sum()),
                     }
 
         # Plot EER by CODEC_Q

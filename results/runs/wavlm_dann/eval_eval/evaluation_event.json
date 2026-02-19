@@ -1,0 +1,15 @@
+{
+  "split": "eval",
+  "checkpoint": "/projects/prjs1904/runs/wavlm_dann/checkpoints/epoch_5_patched.pt",
+  "metrics": {
+    "eer": 0.07363196961954818,
+    "eer_threshold": 0.999083399772644,
+    "min_dcf": 0.5769295439924506,
+    "n_samples": 50000,
+    "n_bonafide": 10183,
+    "n_spoof": 39817
+  },
+  "timestamp": "2026-02-11T20:53:24.095528Z",
+  "n_codecs_evaluated": 12,
+  "n_codec_qs_evaluated": 9
+}

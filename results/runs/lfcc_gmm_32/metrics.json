@@ -1,0 +1,12 @@
+{
+  "n_components": 32,
+  "feature_dim": 120,
+  "train_samples": 182357,
+  "train_bonafide": 18797,
+  "train_spoof": 163560,
+  "val_samples": 140950,
+  "val_accuracy": 0.7467683575736077,
+  "val_eer": 0.17587842286007319,
+  "val_min_dcf": 0.9926983819674878,
+  "eer_threshold": 26.502404695110457
+}

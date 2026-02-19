@@ -139,8 +139,9 @@ def find_protocol_files(protocol_dir: Path = None) -> dict:
     ])
     
     # Protocol file names
+    # Note: train file doesn't have .track_1 suffix, only dev/eval do
     protocol_names = {
-        "train": "ASVspoof5.train.track_1.tsv",
+        "train": "ASVspoof5.train.tsv",
         "dev": "ASVspoof5.dev.track_1.tsv",
         "eval": "ASVspoof5.eval.track_1.tsv",
     }

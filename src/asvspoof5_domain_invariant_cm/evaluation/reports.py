@@ -8,7 +8,14 @@ import numpy as np
 import pandas as pd
 
 from .domain_eval import evaluate_per_domain
-from .metrics import bootstrap_metric, compute_eer, compute_min_dcf
+from .metrics import (
+    bootstrap_metric,
+    compute_auc,
+    compute_eer,
+    compute_min_dcf,
+    compute_tdcf,
+    compute_threshold_metrics,
+)
 
 
 def generate_overall_metrics(
@@ -18,6 +25,8 @@ def generate_overall_metrics(
     n_bootstrap: int = 1000,
     confidence: float = 0.95,
     seed: Optional[int] = None,
+    asv_scores: Optional[np.ndarray] = None,
+    asv_labels: Optional[np.ndarray] = None,
 ) -> dict:
     """Generate overall metrics with optional bootstrap CIs.
 
@@ -28,17 +37,57 @@ def generate_overall_metrics(
         n_bootstrap: Number of bootstrap samples.
         confidence: Confidence level.
         seed: Random seed.
+        asv_scores: ASV verification scores (for t-DCF computation).
+        asv_labels: ASV labels (for t-DCF computation).
 
     Returns:
-        Dictionary of metrics.
+        Dictionary of metrics including:
+        - EER and threshold
+        - minDCF
+        - AUC
+        - F1, Precision, Recall at EER threshold
+        - t-DCF (if ASV scores provided)
+        - Sample counts
     """
     eer, eer_threshold = compute_eer(scores, labels)
     min_dcf = compute_min_dcf(scores, labels)
+    auc = compute_auc(scores, labels)
+
+    # Compute threshold-based metrics at EER threshold
+    threshold_metrics = compute_threshold_metrics(scores, labels, eer_threshold)
+
+    # Compute t-DCF (will return note if ASV scores unavailable)
+    tdcf_result = compute_tdcf(
+        scores, labels,
+        asv_scores=asv_scores,
+        asv_labels=asv_labels,
+    )
 
     metrics = {
+        # Primary metrics
         "eer": float(eer),
         "eer_threshold": float(eer_threshold),
         "min_dcf": float(min_dcf),
+        "auc": float(auc),
+
+        # Threshold-based metrics at EER operating point
+        "f1_macro": threshold_metrics["f1_macro"],
+        "precision_macro": threshold_metrics["precision_macro"],
+        "recall_macro": threshold_metrics["recall_macro"],
+        "f1_bonafide": threshold_metrics["f1_bonafide"],
+        "f1_spoof": threshold_metrics["f1_spoof"],
+        "precision_bonafide": threshold_metrics["precision_bonafide"],
+        "precision_spoof": threshold_metrics["precision_spoof"],
+        "recall_bonafide": threshold_metrics["recall_bonafide"],
+        "recall_spoof": threshold_metrics["recall_spoof"],
+
+        # t-DCF (ASVspoof-specific)
+        "tdcf_min": tdcf_result["min_tdcf"],
+        "tdcf_threshold": tdcf_result["tdcf_threshold"],
+        "tdcf_asv_available": tdcf_result["asv_available"],
+        "tdcf_note": tdcf_result["note"],
+
+        # Sample counts
         "n_samples": len(scores),
         "n_bonafide": int((labels == 0).sum()),
         "n_spoof": int((labels == 1).sum()),
@@ -58,6 +107,13 @@ def generate_overall_metrics(
         )
         metrics["min_dcf_ci_lower"] = float(dcf_lower)
         metrics["min_dcf_ci_upper"] = float(dcf_upper)
+
+        # AUC bootstrap
+        auc_mean, auc_lower, auc_upper = bootstrap_metric(
+            scores, labels, compute_auc, n_bootstrap, confidence, seed
+        )
+        metrics["auc_ci_lower"] = float(auc_lower)
+        metrics["auc_ci_upper"] = float(auc_upper)
 
     return metrics
 

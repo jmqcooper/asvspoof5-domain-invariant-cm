@@ -1,0 +1,74 @@
+{"timestamp": "2026-02-10T20:43:35.936447Z", "level": "INFO", "logger": "__main__", "message": "Output directory: /projects/prjs1904/runs/probes_comparison"}
+{"timestamp": "2026-02-10T20:43:36.954640Z", "level": "INFO", "logger": "__main__", "message": "Git commit: cd52b838"}
+{"timestamp": "2026-02-11T09:16:03.451097Z", "level": "INFO", "logger": "__main__", "message": "Output directory: /projects/prjs1904/runs/probes_comparison"}
+{"timestamp": "2026-02-11T09:16:04.206669Z", "level": "INFO", "logger": "__main__", "message": "Git commit: 44e45bed"}
+{"timestamp": "2026-02-11T09:16:10.216058Z", "level": "INFO", "logger": "__main__", "message": "Using 5000 samples for probing"}
+{"timestamp": "2026-02-11T09:16:10.216585Z", "level": "INFO", "logger": "__main__", "message": "\nProcessing erm: /projects/prjs1904/runs/wavlm_erm/checkpoints/best.pt"}
+{"timestamp": "2026-02-11T09:16:52.999898Z", "level": "INFO", "logger": "__main__", "message": "erm codec label distribution: {0: 351, 1: 361, 2: 327, 3: 380, 4: 384, 5: 280, 6: 341, 7: 327, 8: 287, 9: 330, 10: 330, 11: 1302}"}
+{"timestamp": "2026-02-11T09:16:53.000214Z", "level": "INFO", "logger": "__main__", "message": "erm codec_q label distribution: {0: 738, 1: 707, 2: 697, 3: 730, 4: 703, 5: 44, 6: 35, 7: 44, 8: 1302}"}
+{"timestamp": "2026-02-11T09:16:53.000358Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec..."}
+{"timestamp": "2026-02-11T09:43:51.785874Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-02-11T09:43:51.786050Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.7810"}
+{"timestamp": "2026-02-11T09:43:51.786140Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.4338"}
+{"timestamp": "2026-02-11T09:43:51.786223Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec_q..."}
+{"timestamp": "2026-02-11T10:21:51.213425Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-02-11T10:21:51.213600Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.4982"}
+{"timestamp": "2026-02-11T10:21:51.213685Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.3926"}
+{"timestamp": "2026-02-11T10:21:51.213779Z", "level": "INFO", "logger": "__main__", "message": "\nProcessing dann: /projects/prjs1904/runs/wavlm_dann/checkpoints/best.pt"}
+{"timestamp": "2026-02-11T10:22:20.134786Z", "level": "INFO", "logger": "__main__", "message": "dann codec label distribution: {0: 351, 1: 361, 2: 327, 3: 380, 4: 384, 5: 280, 6: 341, 7: 327, 8: 287, 9: 330, 10: 330, 11: 1302}"}
+{"timestamp": "2026-02-11T10:22:20.135062Z", "level": "INFO", "logger": "__main__", "message": "dann codec_q label distribution: {0: 738, 1: 707, 2: 697, 3: 730, 4: 703, 5: 44, 6: 35, 7: 44, 8: 1302}"}
+{"timestamp": "2026-02-11T10:22:20.135175Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec..."}
+{"timestamp": "2026-02-11T10:43:18.077427Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-02-11T10:43:18.077581Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.7810"}
+{"timestamp": "2026-02-11T10:43:18.077669Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.4698"}
+{"timestamp": "2026-02-11T10:43:18.077751Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec_q..."}
+{"timestamp": "2026-02-11T11:14:25.203585Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-02-11T11:14:25.203772Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.4982"}
+{"timestamp": "2026-02-11T11:14:25.203857Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.4072"}
+{"timestamp": "2026-02-11T11:14:25.207963Z", "level": "INFO", "logger": "__main__", "message": "Saved results: /projects/prjs1904/runs/probes_comparison/probe_results.json"}
+{"timestamp": "2026-02-11T11:14:25.799401Z", "level": "INFO", "logger": "__main__", "message": "\nCODEC comparison:"}
+{"timestamp": "2026-02-11T11:14:25.799530Z", "level": "INFO", "logger": "__main__", "message": "  Avg ERM accuracy: 0.4927"}
+{"timestamp": "2026-02-11T11:14:25.799614Z", "level": "INFO", "logger": "__main__", "message": "  Avg DANN accuracy: 0.4955"}
+{"timestamp": "2026-02-11T11:14:25.799683Z", "level": "INFO", "logger": "__main__", "message": "  Avg reduction: -0.0028"}
+{"timestamp": "2026-02-11T11:14:26.062146Z", "level": "INFO", "logger": "__main__", "message": "\nCODEC_Q comparison:"}
+{"timestamp": "2026-02-11T11:14:26.062269Z", "level": "INFO", "logger": "__main__", "message": "  Avg ERM accuracy: 0.3754"}
+{"timestamp": "2026-02-11T11:14:26.062360Z", "level": "INFO", "logger": "__main__", "message": "  Avg DANN accuracy: 0.3765"}
+{"timestamp": "2026-02-11T11:14:26.062437Z", "level": "INFO", "logger": "__main__", "message": "  Avg reduction: -0.0011"}
+{"timestamp": "2026-02-11T11:14:26.063017Z", "level": "INFO", "logger": "__main__", "message": "\nAll results saved to: /projects/prjs1904/runs/probes_comparison"}
+{"timestamp": "2026-02-11T11:14:37.198671Z", "level": "INFO", "logger": "__main__", "message": "Logged probe results to Wandb"}
+{"timestamp": "2026-02-11T11:15:07.130162Z", "level": "INFO", "logger": "__main__", "message": "Output directory: /projects/prjs1904/runs/probes_comparison"}
+{"timestamp": "2026-02-11T11:15:07.952851Z", "level": "INFO", "logger": "__main__", "message": "Git commit: f00180f0"}
+{"timestamp": "2026-02-11T11:15:13.000972Z", "level": "INFO", "logger": "__main__", "message": "Using 5000 samples for probing"}
+{"timestamp": "2026-02-11T11:15:13.001354Z", "level": "INFO", "logger": "__main__", "message": "\nProcessing erm: /projects/prjs1904/runs/w2v2_erm/checkpoints/best.pt"}
+{"timestamp": "2026-02-11T11:15:39.096741Z", "level": "INFO", "logger": "__main__", "message": "erm codec label distribution: {0: 351, 1: 361, 2: 327, 3: 380, 4: 384, 5: 280, 6: 341, 7: 327, 8: 287, 9: 330, 10: 330, 11: 1302}"}
+{"timestamp": "2026-02-11T11:15:39.097044Z", "level": "INFO", "logger": "__main__", "message": "erm codec_q label distribution: {0: 738, 1: 707, 2: 697, 3: 730, 4: 703, 5: 44, 6: 35, 7: 44, 8: 1302}"}
+{"timestamp": "2026-02-11T11:15:39.097180Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec..."}
+{"timestamp": "2026-02-11T11:29:08.083306Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-02-11T11:29:08.083469Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.7554"}
+{"timestamp": "2026-02-11T11:29:08.083555Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.4714"}
+{"timestamp": "2026-02-11T11:29:08.083634Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec_q..."}
+{"timestamp": "2026-02-11T11:55:56.366941Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-02-11T11:55:56.367101Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.4728"}
+{"timestamp": "2026-02-11T11:55:56.367183Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.3936"}
+{"timestamp": "2026-02-11T11:55:56.367265Z", "level": "INFO", "logger": "__main__", "message": "\nProcessing dann: /projects/prjs1904/runs/w2v2_dann/checkpoints/best.pt"}
+{"timestamp": "2026-02-11T11:56:19.685216Z", "level": "INFO", "logger": "__main__", "message": "dann codec label distribution: {0: 351, 1: 361, 2: 327, 3: 380, 4: 384, 5: 280, 6: 341, 7: 327, 8: 287, 9: 330, 10: 330, 11: 1302}"}
+{"timestamp": "2026-02-11T11:56:19.685471Z", "level": "INFO", "logger": "__main__", "message": "dann codec_q label distribution: {0: 738, 1: 707, 2: 697, 3: 730, 4: 703, 5: 44, 6: 35, 7: 44, 8: 1302}"}
+{"timestamp": "2026-02-11T11:56:19.685582Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec..."}
+{"timestamp": "2026-02-11T12:08:36.310336Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-02-11T12:08:36.310497Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.7554"}
+{"timestamp": "2026-02-11T12:08:36.310577Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.4598"}
+{"timestamp": "2026-02-11T12:08:36.310646Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec_q..."}
+{"timestamp": "2026-02-11T12:29:46.657124Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-02-11T12:29:46.657276Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.4728"}
+{"timestamp": "2026-02-11T12:29:46.657355Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.3908"}
+{"timestamp": "2026-02-11T12:29:46.661932Z", "level": "INFO", "logger": "__main__", "message": "Saved results: /projects/prjs1904/runs/probes_comparison/probe_results.json"}
+{"timestamp": "2026-02-11T12:29:46.940539Z", "level": "INFO", "logger": "__main__", "message": "\nCODEC comparison:"}
+{"timestamp": "2026-02-11T12:29:46.940657Z", "level": "INFO", "logger": "__main__", "message": "  Avg ERM accuracy: 0.5698"}
+{"timestamp": "2026-02-11T12:29:46.940748Z", "level": "INFO", "logger": "__main__", "message": "  Avg DANN accuracy: 0.5689"}
+{"timestamp": "2026-02-11T12:29:46.940825Z", "level": "INFO", "logger": "__main__", "message": "  Avg reduction: 0.0009"}
+{"timestamp": "2026-02-11T12:29:47.212451Z", "level": "INFO", "logger": "__main__", "message": "\nCODEC_Q comparison:"}
+{"timestamp": "2026-02-11T12:29:47.212562Z", "level": "INFO", "logger": "__main__", "message": "  Avg ERM accuracy: 0.3881"}
+{"timestamp": "2026-02-11T12:29:47.212642Z", "level": "INFO", "logger": "__main__", "message": "  Avg DANN accuracy: 0.3879"}
+{"timestamp": "2026-02-11T12:29:47.212710Z", "level": "INFO", "logger": "__main__", "message": "  Avg reduction: 0.0002"}
+{"timestamp": "2026-02-11T12:29:47.213104Z", "level": "INFO", "logger": "__main__", "message": "\nAll results saved to: /projects/prjs1904/runs/probes_comparison"}
+{"timestamp": "2026-02-11T12:29:52.801407Z", "level": "INFO", "logger": "__main__", "message": "Logged probe results to Wandb"}

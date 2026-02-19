@@ -1,0 +1,13 @@
+{
+  "model_type": "trillsson",
+  "model_path": "/projects/prjs1904/runs/trillsson_logistic/model.joblib",
+  "split": "eval",
+  "run_name": "trillsson_logistic",
+  "timestamp": "2026-02-13T04:58:13.147085Z",
+  "eer": 0.2374899488810024,
+  "min_dcf": 0.9999927895708353,
+  "eer_threshold": 0.9999912023362507,
+  "n_samples": 680774,
+  "n_bonafide": 138688,
+  "n_spoof": 542086
+}

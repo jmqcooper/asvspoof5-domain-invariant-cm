@@ -52,36 +52,43 @@ export WANDB_PROJECT=${WANDB_PROJECT:-asvspoof5-dann}
 
 echo "=== Evaluating All Models ==="
 
-# Evaluate WavLM ERM
+# Checkpoint base path (absolute for Snellius)
+RUNS_DIR="${RUNS_DIR:-/projects/prjs1904/runs}"
+
+# Evaluate WavLM ERM (with per-domain breakdown)
 echo ""
 echo "--- WavLM ERM ---"
 srun uv run python scripts/evaluate.py \
-    --checkpoint runs/wavlm_erm/checkpoints/best.pt \
-    --split dev \
+    --checkpoint "${RUNS_DIR}/wavlm_erm/checkpoints/best.pt" \
+    --split eval \
+    --per-domain \
     --wandb
 
-# Evaluate WavLM DANN
+# Evaluate WavLM DANN (with per-domain breakdown)
 echo ""
 echo "--- WavLM DANN ---"
 srun uv run python scripts/evaluate.py \
-    --checkpoint runs/wavlm_dann/checkpoints/best.pt \
-    --split dev \
+    --checkpoint "${RUNS_DIR}/wavlm_dann/checkpoints/best.pt" \
+    --split eval \
+    --per-domain \
     --wandb
 
-# Evaluate Wav2Vec2 ERM
+# Evaluate Wav2Vec2 ERM (with per-domain breakdown)
 echo ""
 echo "--- Wav2Vec2 ERM ---"
 srun uv run python scripts/evaluate.py \
-    --checkpoint runs/w2v2_erm/checkpoints/best.pt \
-    --split dev \
+    --checkpoint "${RUNS_DIR}/w2v2_erm/checkpoints/best.pt" \
+    --split eval \
+    --per-domain \
     --wandb
 
-# Evaluate Wav2Vec2 DANN
+# Evaluate Wav2Vec2 DANN (with per-domain breakdown)
 echo ""
 echo "--- Wav2Vec2 DANN ---"
 srun uv run python scripts/evaluate.py \
-    --checkpoint runs/w2v2_dann/checkpoints/best.pt \
-    --split dev \
+    --checkpoint "${RUNS_DIR}/w2v2_dann/checkpoints/best.pt" \
+    --split eval \
+    --per-domain \
     --wandb
 
 echo ""

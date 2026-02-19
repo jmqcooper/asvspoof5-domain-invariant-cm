@@ -1,0 +1,160 @@
+# WavLM Base+ DANN Configuration
+# Single-file config for DANN training with WavLM backbone
+#
+# IMPORTANT: ASVspoof5 train/dev have NO codec diversity (all samples are uncoded).
+# DANN is meaningless without synthetic codec augmentation to create domain labels.
+# See augmentation section below.
+
+# Backbone
+backbone:
+  name: wavlm_base_plus
+  pretrained: microsoft/wavlm-base-plus
+  num_layers: 12
+  hidden_size: 768
+  freeze: true
+
+  layer_selection:
+    method: weighted
+    k: 6
+    init_lower_bias: true
+
+# Pooling
+pooling:
+  method: stats  # mean+std concatenation
+
+# Projection head
+projection:
+  input_dim: 1536  # 768 * 2 for stats pooling
+  hidden_dim: 512
+  output_dim: 256
+  num_layers: 2
+  dropout: 0.1
+
+# Task classifier
+classifier:
+  input_dim: 256
+  num_classes: 2
+  hidden_dim: 0  # Direct linear
+  dropout: 0.1
+
+# Training
+training:
+  method: dann
+
+  optimizer:
+    name: adamw
+    lr: 1.0e-4
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+
+  scheduler:
+    name: cosine
+    warmup_steps: 500
+    min_lr: 1.0e-6
+
+  max_epochs: 50
+  patience: 10
+  min_delta: 0.001  # Minimum improvement to count as progress (for EER)
+  train_loss_threshold: 0.0  # Disable train-loss early stopping for DANN
+  plateau_patience: 3  # Consecutive low train loss epochs before early stop
+  # NOTE: Tighter gradient clipping for DANN stability. The GRL negates gradients,
+  # and combined with high lambda values this can cause gradient explosion.
+  # Literature (e.g., "A Closer Look at Smoothness in Domain Adversarial Training")
+  # recommends tighter clipping for adversarial training.
+  gradient_clip: 1.0  # WavLM can handle higher clip with exponential schedule
+
+  save_every_n_epochs: 5
+  save_best_only: true
+  monitor_metric: eer
+  monitor_mode: min
+
+# Loss
+loss:
+  task:
+    name: cross_entropy
+    weight: 1.0
+    label_smoothing: 0.0
+
+  domain:
+    codec:
+      name: cross_entropy
+      weight: 1.0
+    codec_q:
+      name: cross_entropy
+      weight: 1.0
+      mask_for_none: true  # Mask CODEC_Q loss when codec is NONE
+
+# DANN-specific settings
+# See issue #61 for research on optimal lambda scheduling.
+#
+# Key findings from DANN literature (Ganin et al. 2016, ICML 2022 "Closer Look at Smoothness"):
+# 1. Lambda should be capped below 1.0 for stability (0.75 optimal based on our experiments)
+# 2. Warmup epochs allow feature extractor to stabilize before adversarial pressure
+# 3. Linear schedules are more stable than exponential (smoother gradient transitions)
+# 4. Empirical observation: training destabilizes when lambda > 0.75
+#
+dann:
+  lambda_: 0.1  # Initial value (used if schedule disabled)
+
+  lambda_schedule:
+    enabled: true
+    # Exponential schedule for WavLM — more aggressive than linear
+    # WavLM's uniform codec encoding (94%→72% across layers) can handle
+    # stronger adversarial pressure without destabilizing
+    type: exponential
+    start: 0.01  # Start gentle
+    end: 1.0     # Full adversarial strength
+    warmup_epochs: 0  # No warmup needed for WavLM
+
+  discriminator:
+    input_dim: 1536   # stats pooling output (768*2) — pre-projection features
+    hidden_dim: 512
+    dropout: 0.1
+
+# Synthetic codec augmentation (REQUIRED for meaningful DANN on ASVspoof5)
+augmentation:
+  enabled: true
+  codec_prob: 0.5
+  codecs: [MP3, AAC, OPUS]
+  qualities: [1, 2, 3, 4, 5]
+  cache_dir: null
+  use_synthetic_labels: true
+
+# Audio
+audio:
+  sample_rate: 16000
+  max_duration_sec: 6.0
+
+# Dataloader
+# NOTE: batch_size=256 for A100 (~25GB VRAM)
+dataloader:
+  batch_size: 256
+  num_workers: 8
+  pin_memory: true
+  drop_last: true
+  prefetch_factor: 4
+  persistent_workers: true
+
+# Logging
+logging:
+  log_every_n_steps: 50
+  val_every_n_epochs: 1
+  log_domain_accuracy: true
+  log_domain_breakdown_every: 5  # Per-domain metrics frequency
+  json_logs: true  # Write JSON logs to file
+  log_batch_samples: 0.02  # Sample 2% of batches for detailed logging
+  track_gradients: true  # Log gradient norms
+  track_layer_weights: true  # Log layer mixing weights
+
+# Wandb
+wandb:
+  enabled: true
+  project: asvspoof5-dann
+  entity: null
+  tags: ["wavlm", "dann", "track1"]
+  log_model: true  # Save model as artifact
+  log_code: true  # Log code snapshot
+
+# Reproducibility
+seed: 42
+deterministic: true

@@ -58,6 +58,7 @@ from asvspoof5_domain_invariant_cm.utils import (
     get_aug_cache_dir,
     get_device,
     get_experiment_context,
+    get_git_info,
     get_manifest_path,
     get_manifests_dir,
     get_run_dir,
@@ -354,15 +355,24 @@ def main():
         torch.backends.cudnn.benchmark = True
         logger.info("CUDA optimizations: TF32=True, cudnn.benchmark=True")
 
-    # Setup run directory
+    # Setup run directory with git commit hash for traceability
+    # Format: {name}_{commit_hash} e.g., wavlm_dann_cd52b83
+    # Falls back to timestamp if git unavailable to prevent overwrites
+    git_info = get_git_info()
+    if git_info.get("commit"):
+        run_suffix = git_info["commit"][:7]
+    else:
+        run_suffix = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
     if args.name:
-        run_name = args.name
+        base_name = args.name
     else:
         method = config.get("training", {}).get("method", "erm")
         backbone_name = config.get("backbone", {}).get("name", "wavlm")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_name = f"{backbone_name}_{method}_{timestamp}"
-
+        base_name = f"{backbone_name}_{method}_{timestamp}"
+    
+    run_name = f"{base_name}_{run_suffix}"
     run_dir = get_run_dir(run_name)
 
     # Reconfigure logging with JSON output to run directory

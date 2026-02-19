@@ -1,7 +1,7 @@
 """Audio loading, cropping, padding, and batching utilities."""
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, Tuple, Union
 
 import soundfile as sf
 import torch
@@ -9,9 +9,9 @@ import torchaudio
 
 
 def load_waveform(
-    path: str | Path,
+    path: Union[str, Path],
     target_sr: int = 16000,
-) -> tuple[torch.Tensor, int]:
+) -> Tuple[torch.Tensor, int]:
     """Load audio waveform using soundfile.
 
     Args:

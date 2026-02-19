@@ -3,6 +3,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 
 def get_asvspoof5_root() -> Path:
@@ -83,7 +84,7 @@ def get_runs_dir() -> Path:
     return runs_dir
 
 
-def get_aug_cache_dir() -> Path | None:
+def get_aug_cache_dir() -> Optional[Path]:
     """Get augmentation cache directory.
 
     Uses AUGMENTATION_CACHE_DIR environment variable if set.

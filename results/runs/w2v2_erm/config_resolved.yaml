@@ -1,0 +1,82 @@
+audio:
+  max_duration_sec: 6.0
+  sample_rate: 16000
+backbone:
+  freeze: true
+  hidden_size: 768
+  layer_selection:
+    init_lower_bias: true
+    k: 6
+    method: weighted
+  name: wav2vec2_base
+  num_layers: 12
+  pretrained: facebook/wav2vec2-base
+classifier:
+  dropout: 0.1
+  hidden_dim: 0
+  input_dim: 256
+  num_classes: 2
+dataloader:
+  batch_size: 256
+  drop_last: true
+  num_workers: 8
+  persistent_workers: true
+  pin_memory: true
+  prefetch_factor: 4
+deterministic: true
+logging:
+  json_logs: true
+  log_batch_samples: 0.02
+  log_domain_breakdown_every: 5
+  log_every_n_steps: 50
+  track_gradients: true
+  track_layer_weights: true
+  val_every_n_epochs: 1
+loss:
+  task:
+    label_smoothing: 0.0
+    name: cross_entropy
+    weight: 1.0
+pooling:
+  method: stats
+projection:
+  dropout: 0.1
+  hidden_dim: 512
+  input_dim: 1536
+  num_layers: 2
+  output_dim: 256
+seed: 42
+training:
+  gradient_clip: 0.5
+  max_epochs: 50
+  method: erm
+  min_delta: 0.001
+  monitor_metric: eer
+  monitor_mode: min
+  nan_grad_abort_count: 5
+  optimizer:
+    betas:
+    - 0.9
+    - 0.999
+    lr: 5.0e-05
+    name: adamw
+    weight_decay: 0.01
+  patience: 10
+  plateau_patience: 3
+  save_best_only: true
+  save_every_n_epochs: 5
+  scheduler:
+    min_lr: 1.0e-06
+    name: cosine
+    warmup_steps: 2000
+  train_loss_threshold: 0.0
+wandb:
+  enabled: true
+  entity: null
+  log_code: true
+  log_model: true
+  project: asvspoof5-dann
+  tags:
+  - wav2vec2
+  - erm
+  - track1

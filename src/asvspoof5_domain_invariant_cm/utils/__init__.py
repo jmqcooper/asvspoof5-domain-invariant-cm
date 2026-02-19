@@ -33,6 +33,7 @@ _LOGGING_ATTRS = {
     "check_for_nan_grads",
     "compute_grad_norm",
     "get_experiment_context",
+    "get_git_info",
     "get_gpu_memory_usage",
     "get_gpu_utilization",
     "setup_logging",
@@ -80,6 +81,7 @@ __all__ = [
     # Logging (lazy)
     "setup_logging",
     "get_experiment_context",
+    "get_git_info",
     "ExperimentLogger",
     "compute_grad_norm",
     "check_for_nan_grads",

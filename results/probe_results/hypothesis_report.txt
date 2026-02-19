@@ -1,0 +1,42 @@
+======================================================================
+BACKBONE COMPARISON: CODEC ENCODING ANALYSIS
+======================================================================
+
+SUMMARY STATISTICS
+----------------------------------------
+WavLM  - Mean accuracy: 0.798 ± 0.069
+         Peak: Layer 0 (0.936)
+wav2vec2 - Mean accuracy: 0.630 ± 0.100
+         Peak: Layer 1 (0.782)
+
+LAYER-WISE DISTRIBUTION
+----------------------------------------
+WavLM  - Early (L0-3): 0.884, Mid (L4-7): 0.777, Late (L8-11): 0.733
+wav2vec2 - Early (L0-3): 0.750, Mid (L4-7): 0.620, Late (L8-11): 0.520
+
+HYPOTHESES FOR DANN PERFORMANCE DIFFERENCE
+----------------------------------------
+1. WavLM encodes MORE codec information overall
+   → But DANN still works better - suggests layer weighting matters more
+
+2. WavLM has MORE UNIFORM codec encoding across layers
+   → Easier for layer weighting to find good combination
+   → wav2vec2's peaked distribution may concentrate codec info in specific layers
+
+3. ARCHITECTURAL FACTOR: Gated Relative Position Bias
+   → WavLM's gated mechanism may adaptively weight local context
+   → Could help separate content from acoustic artifacts (codecs)
+   → wav2vec2's conv pos embeddings are less adaptive
+
+RECOMMENDATIONS FOR IMPROVING wav2vec2 DANN
+----------------------------------------
+1. Focus on layers [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] where wav2vec2 encodes less codec info
+   → Consider 'specific' layer selection with these layers
+2. Try unfreezing top layers of wav2vec2 backbone
+   → May allow learning codec-invariant representations
+3. Consider stronger gradient reversal (higher lambda)
+   → wav2vec2's codec encoding may need stronger adversarial pressure
+4. Experiment with different layer selection strategies
+   → 'first_k' or 'specific' instead of 'weighted' for all layers
+
+======================================================================

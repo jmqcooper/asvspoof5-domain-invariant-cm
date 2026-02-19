@@ -57,7 +57,11 @@ training:
   min_delta: 0.001  # Minimum improvement to count as progress (for EER)
   train_loss_threshold: 0.0  # Disable train-loss early stopping for DANN
   plateau_patience: 3  # Consecutive low train loss epochs before early stop
-  gradient_clip: 1.0
+  # NOTE: Tighter gradient clipping for DANN stability. The GRL negates gradients,
+  # and combined with high lambda values this can cause gradient explosion.
+  # Literature (e.g., "A Closer Look at Smoothness in Domain Adversarial Training")
+  # recommends tighter clipping for adversarial training.
+  gradient_clip: 0.5
 
   save_every_n_epochs: 5
   save_best_only: true
@@ -81,15 +85,25 @@ loss:
       mask_for_none: true  # Mask CODEC_Q loss when codec is NONE
 
 # DANN-specific settings
+# See issue #61 for research on optimal lambda scheduling.
+#
+# Key findings from DANN literature (Ganin et al. 2016, ICML 2022 "Closer Look at Smoothness"):
+# 1. Lambda should be capped below 1.0 for stability (0.75 optimal based on our experiments)
+# 2. Warmup epochs allow feature extractor to stabilize before adversarial pressure
+# 3. Linear schedules are more stable than exponential (smoother gradient transitions)
+# 4. Empirical observation: training destabilizes when lambda > 0.75
+#
 dann:
-  lambda_: 0.01
+  lambda_: 0.1  # Initial value (used if schedule disabled)
 
   lambda_schedule:
     enabled: true
-    type: exponential
-    start: 0.01
-    end: 1.0
-    warmup_epochs: 0
+    # Linear schedule is more stable than exponential for DANN
+    # (smoother gradient transitions, less oscillation in adversarial game)
+    type: linear
+    start: 0.1   # Start with moderate adversarial pressure
+    end: 0.75    # Cap below 1.0 to prevent gradient explosion (best EER at lambda=0.72)
+    warmup_epochs: 3  # Let feature extractor stabilize before adversarial training
 
   discriminator:
     input_dim: 1536   # stats pooling output (768*2) — pre-projection features

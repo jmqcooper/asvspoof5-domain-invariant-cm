@@ -1,0 +1,29 @@
+{
+  "split": "eval",
+  "checkpoint": "/projects/prjs1904/runs/wavlm_dann/checkpoints/epoch_5_patched.pt",
+  "metrics": {
+    "eer": 0.07341557010710277,
+    "eer_threshold": 0.9991089701652527,
+    "min_dcf": 0.5852644935221787,
+    "auc": 0.9775695807994588,
+    "f1_macro": 0.8949042561482285,
+    "precision_macro": 0.8718372223520752,
+    "recall_macro": 0.9265880351074796,
+    "f1_bonafide": 0.8372009694063689,
+    "f1_spoof": 0.9526075428900883,
+    "precision_bonafide": 0.7635409734765662,
+    "precision_spoof": 0.9801334712275841,
+    "recall_bonafide": 0.9265906206737425,
+    "recall_spoof": 0.9265854495412167,
+    "tdcf_min": null,
+    "tdcf_threshold": null,
+    "tdcf_asv_available": false,
+    "tdcf_note": "t-DCF requires ASV (Automatic Speaker Verification) scores which are not available in this dataset. t-DCF measures the combined performance of ASV and CM systems in tandem. To compute t-DCF, ASV scores from the official ASVspoof evaluation server or a separate ASV system are needed.",
+    "n_samples": 680774,
+    "n_bonafide": 138688,
+    "n_spoof": 542086
+  },
+  "timestamp": "2026-02-14T00:35:44.825006Z",
+  "n_codecs_evaluated": 12,
+  "n_codec_qs_evaluated": 9
+}

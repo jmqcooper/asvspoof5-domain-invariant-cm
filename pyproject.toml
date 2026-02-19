@@ -50,10 +50,25 @@ dependencies = [
     "einops>=0.8",
     "rich>=13.9",
     "wandb>=0.18",
+    "notebook>=7.5.3",
+    "jupyterlab>=4.5.4",
+    "umap-learn",
 ]
 
 [project.optional-dependencies]
+notebooks = [
+    "jupyter>=1.0",
+    "notebook>=7.0",
+    "ipykernel>=6.0",
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "pandas>=2.2",
+    "plotly>=5.0",
+    "kaleido>=0.2",
+    "tabulate>=0.9",
+]
 dev = [
+    "asvspoof5-domain-invariant-cm[notebooks]",
     "ruff>=0.8",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",

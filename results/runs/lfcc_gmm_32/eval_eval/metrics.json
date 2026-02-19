@@ -1,0 +1,13 @@
+{
+  "model_type": "lfcc_gmm",
+  "model_path": "/projects/prjs1904/runs/lfcc_gmm_32/model.joblib",
+  "split": "eval",
+  "run_name": "lfcc_gmm_32",
+  "timestamp": "2026-02-12T20:55:19.704247Z",
+  "eer": 0.4332599674681976,
+  "min_dcf": 0.9995313221042917,
+  "eer_threshold": 6.69026533470867,
+  "n_samples": 680774,
+  "n_bonafide": 138688,
+  "n_spoof": 542086
+}

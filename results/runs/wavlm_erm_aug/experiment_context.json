@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-02-08T11:30:02.809457Z",
+  "git": {
+    "commit": "5e88564a9c4c48fc2ea3b6434d4358c2efa17ebd",
+    "branch": "main",
+    "dirty": true
+  },
+  "hardware": {
+    "hostname": "gcn23.local.snellius.surf.nl",
+    "python_version": "3.11.11",
+    "pytorch_version": "2.9.1+cu128",
+    "cuda_available": true,
+    "cuda_version": "12.8",
+    "gpu_count": 1,
+    "gpu_name": "NVIDIA A100-SXM4-40GB",
+    "gpu_memory_gb": 39.49
+  },
+  "packages": {
+    "torch": "2.9.1+cu128",
+    "torchaudio": "2.9.1+cu128",
+    "transformers": "4.57.3",
+    "numpy": "2.3.5",
+    "pandas": "2.3.3",
+    "wandb": "0.23.1",
+    "matplotlib": "3.10.8",
+    "seaborn": "0.13.2"
+  },
+  "environment": {
+    "cwd": "/gpfs/work5/0/prjs1904/asvspoof5-domain-invariant-cm",
+    "user": "jcooper"
+  },
+  "config_hash": "bdd4b467"
+}

@@ -1,0 +1,14 @@
+{
+  "eval_split": "eval",
+  "probe_split": "eval",
+  "max_eval_samples": 20000,
+  "max_cka_samples": 5000,
+  "max_probe_samples": 5000,
+  "codec_unique": 12,
+  "codec_q_unique": 9,
+  "result_rows": 4,
+  "results_csv": "rq4_results_summary.csv",
+  "cka_csv": "rq4_cka_results.csv",
+  "stats_cache": "rq4_stats_cache.npz",
+  "repr_cache": "rq4_repr_cache.npz"
+}

@@ -1,0 +1,10 @@
+{
+  "classifier": "logistic",
+  "embedding_dim": 1024,
+  "train_samples": 182357,
+  "val_samples": 140950,
+  "val_accuracy": 0.6819865200425683,
+  "val_eer": 0.1935198466772374,
+  "val_min_dcf": 1.0,
+  "eer_threshold": 0.9999943809986089
+}

@@ -1,0 +1,52 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=WavLM_DANN_Exp
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=48:00:00
+#SBATCH --output=./scripts/jobs/out/%x_%A.out
+
+# Train WavLM DANN with exponential λ schedule (the config that achieved 7.19% EER)
+# Uses: exponential 0.01→1.0, no warmup, gradient_clip=1.0
+
+module purge
+module load 2025
+
+if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
+  cd "$SLURM_SUBMIT_DIR"
+fi
+if [[ ! -f "pyproject.toml" ]]; then
+  echo "ERROR: pyproject.toml not found in $(pwd)." >&2
+  exit 1
+fi
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --locked
+
+uv run python - <<'EOF'
+import torch
+print(f"CUDA available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"Active GPU: {torch.cuda.get_device_name(0)}")
+EOF
+
+source scripts/jobs/_job_common.sh
+load_and_require_asvspoof5_root
+
+export WANDB_PROJECT=${WANDB_PROJECT:-asvspoof5-dann}
+export HF_HOME=${HF_HOME:-/scratch-shared/$USER/.cache/huggingface}
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+echo "=== Training WavLM + DANN (Exponential Schedule) ==="
+
+load_ffmpeg_module
+check_ffmpeg_encoders_or_fail
+
+srun uv run python scripts/train.py \
+    --config configs/wavlm_dann_exponential.yaml \
+    --name wavlm_dann_exp \
+    --wandb
+
+echo "Training complete!"

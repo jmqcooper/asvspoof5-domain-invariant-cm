@@ -115,11 +115,13 @@ TRAIN_SCRIPTS=(
     "scripts/jobs/train_wavlm_erm.job"
     "scripts/jobs/train_wavlm_erm_aug.job"
     "scripts/jobs/train_wavlm_dann.job"
+    "scripts/jobs/train_wavlm_dann_exp.job"  # Exponential λ schedule (better for WavLM)
     "scripts/jobs/train_w2v2_erm.job"
     "scripts/jobs/train_w2v2_erm_aug.job"
-    "scripts/jobs/train_w2v2_dann.job"
+    "scripts/jobs/train_w2v2_dann.job"       # v2 config with first_k=6
 )
 EVAL_SCRIPT="scripts/jobs/evaluate_models.job"
+PROBE_SCRIPT="scripts/jobs/probe_domain.job"  # ERM vs DANN domain probe comparison
 ANALYSIS_SCRIPT="scripts/jobs/run_analysis.job"
 BASELINES_SCRIPT="scripts/jobs/run_baselines.job"
 HELD_OUT_SCRIPT="scripts/jobs/run_held_out.job"
@@ -172,8 +174,11 @@ echo ""
 echo -e "  ${GREEN}Phase 4: Analysis (after ERM+DANN training)${NC}"
 echo "    - $(get_job_info $ANALYSIS_SCRIPT)"
 echo ""
+echo -e "  ${GREEN}Phase 5: Domain Probe Comparison (after training)${NC}"
+echo "    - $(get_job_info $PROBE_SCRIPT)"
+echo ""
 if [ "$SKIP_HELD_OUT" = false ]; then
-    echo -e "  ${GREEN}Phase 5: Held-Out Codec Experiment${NC}"
+    echo -e "  ${GREEN}Phase 6: Held-Out Codec Experiment${NC}"
     echo "    - $(get_job_info $HELD_OUT_SCRIPT)"
     echo ""
 fi
@@ -396,9 +401,37 @@ if [ -f "$ANALYSIS_SCRIPT" ]; then
 fi
 echo ""
 
-# Phase 5: Held-Out Codec Experiment (depends on setup only - does its own training)
+# Phase 5: Domain Probe Comparison (depends on training)
+echo -e "${BLUE}Phase 5: Domain Probe Comparison${NC}"
+if [ -f "$PROBE_SCRIPT" ]; then
+    job_name=$(grep -m1 "#SBATCH --job-name=" "$PROBE_SCRIPT" | cut -d'=' -f2)
+    
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "  [DRY RUN] Would submit: ${GREEN}$job_name${NC} (after training)"
+    else
+        TRAIN_DEPS=$(IFS=:; echo "${TRAIN_JOB_IDS[*]}")
+        set +e
+        output=$(sbatch --chdir="$PROJECT_ROOT" --dependency=afterok:$TRAIN_DEPS "$PROBE_SCRIPT" 2>&1)
+        sbatch_exit_code=$?
+        set -e
+        if [ $sbatch_exit_code -ne 0 ]; then
+            echo -e "  ${YELLOW}Failed to submit $job_name: $output${NC}"
+        elif [[ $output =~ Submitted\ batch\ job\ ([0-9]+) ]]; then
+            job_id="${BASH_REMATCH[1]}"
+            ALL_JOB_IDS+=("$job_id")
+            echo -e "  Submitted: ${GREEN}$job_name${NC} (Job ID: $job_id, depends on: $TRAIN_DEPS)"
+        else
+            echo -e "  ${YELLOW}Failed to submit $job_name: $output${NC}"
+        fi
+    fi
+else
+    echo -e "  ${YELLOW}Probe script not found: $PROBE_SCRIPT${NC}"
+fi
+echo ""
+
+# Phase 6: Held-Out Codec Experiment (depends on setup only - does its own training)
 if [ "$SKIP_HELD_OUT" = false ]; then
-    echo -e "${BLUE}Phase 5: Held-Out Codec Experiment${NC}"
+    echo -e "${BLUE}Phase 6: Held-Out Codec Experiment${NC}"
     if [ -f "$HELD_OUT_SCRIPT" ]; then
         job_name=$(grep -m1 "#SBATCH --job-name=" "$HELD_OUT_SCRIPT" | cut -d'=' -f2)
         

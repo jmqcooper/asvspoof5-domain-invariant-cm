@@ -1,0 +1,25 @@
+{
+  "analysis_type": "domain_probes",
+  "mode": "comparison",
+  "split": "eval",
+  "n_samples": 5000,
+  "domains": [
+    "codec",
+    "codec_q"
+  ],
+  "classifier": "logistic",
+  "cv_folds": 5,
+  "timestamp": "2026-02-11T12:29:47.212760Z",
+  "comparison_summary": {
+    "codec": {
+      "avg_erm_accuracy": 0.5698,
+      "avg_dann_accuracy": 0.5689076923076922,
+      "avg_reduction": 0.0008923076923077478
+    },
+    "codec_q": {
+      "avg_erm_accuracy": 0.38812307692307696,
+      "avg_dann_accuracy": 0.3879076923076923,
+      "avg_reduction": 0.0002153846153846728
+    }
+  }
+}

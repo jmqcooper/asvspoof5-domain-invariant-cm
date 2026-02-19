@@ -1,0 +1,2 @@
+domain,n_samples,n_bonafide,n_spoof,eer,eer_threshold,min_dcf
+NONE,140950,31334,109616,0.20320359489660267,1.0,1.0

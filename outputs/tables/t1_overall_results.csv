@@ -1,0 +1,9 @@
+Model,Method,Dev EER,Eval EER,minDCF,AUC,F1
+WavLM,ERM,3.46%,8.48%,0.636,0.972,0.880
+WavLM,DANN,4.44%,7.36%,0.577,-,-
+Wav2Vec2,ERM,4.81%,15.15%,1.000,0.907,0.796
+Wav2Vec2,DANN v1,5.29%,14.37%,0.995,0.929,0.806
+Wav2Vec2,DANN v2,-,18.54%,1.000,0.871,0.755
+LFCC-GMM,Baseline,-,43.33%,1.000,-,-
+Trillsson,Logistic,-,23.75%,1.000,-,-
+Trillsson,MLP,-,25.65%,1.000,-,-

@@ -1,0 +1,22 @@
+{
+  "eer": 0.18615875698414913,
+  "eer_threshold": 0.9999998807907104,
+  "min_dcf": 0.9999927895708353,
+  "auc": 0.8691617672365841,
+  "f1_macro": 0.7541005241420939,
+  "precision_macro": 0.7336822092715649,
+  "recall_macro": 0.8165652773289943,
+  "f1_bonafide": 0.6384810954832664,
+  "f1_spoof": 0.8697199528009216,
+  "precision_bonafide": 0.5186830215367151,
+  "precision_spoof": 0.9486813970064149,
+  "recall_bonafide": 0.83023765574527,
+  "recall_spoof": 0.8028928989127186,
+  "tdcf_min": null,
+  "tdcf_threshold": null,
+  "tdcf_asv_available": false,
+  "tdcf_note": "t-DCF requires ASV (Automatic Speaker Verification) scores which are not available in this dataset. t-DCF measures the combined performance of ASV and CM systems in tandem. To compute t-DCF, ASV scores from the official ASVspoof evaluation server or a separate ASV system are needed.",
+  "n_samples": 680774,
+  "n_bonafide": 138688,
+  "n_spoof": 542086
+}

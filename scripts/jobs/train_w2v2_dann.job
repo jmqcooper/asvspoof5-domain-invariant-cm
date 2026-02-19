@@ -11,6 +11,9 @@
 # batch_size=256, num_workers=8, ~25GB VRAM usage
 # Reduced time estimate due to larger batches
 # DANN takes longer due to augmentation overhead
+#
+# v2 config: first_k=6 layers, lambda 0.1→0.85, 3 epoch warmup
+# Optimized based on codec probe analysis (late layers near-random)
 
 # =============================================================================
 # Train Wav2Vec2 + DANN Model
@@ -68,8 +71,8 @@ echo "ffmpeg encoders OK."
 echo ""
 
 srun uv run python scripts/train.py \
-    --config configs/w2v2_dann.yaml \
-    --name w2v2_dann \
+    --config configs/w2v2_dann_v2.yaml \
+    --name w2v2_dann_v2 \
     --wandb
 
 echo "Training complete!"

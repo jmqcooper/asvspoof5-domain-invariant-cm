@@ -214,8 +214,9 @@ data/
 
 datasets/
 experiments/
-runs/
-outputs/
+/runs/
+!/results/runs/
+# outputs/
 checkpoints/
 artifacts/
 wandb/
@@ -243,4 +244,4 @@ logs/
 # Job output files
 *.out
 cat_output.out
-cat_ouput.out
+cat_ouput.out.cursor

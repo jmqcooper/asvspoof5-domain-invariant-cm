@@ -1,0 +1,503 @@
+#!/bin/bash
+#SBATCH --partition=gpu_mig
+#SBATCH --gpus=1
+#SBATCH --job-name=EvalRQ1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --time=06:00:00
+#SBATCH --mem=64G
+#SBATCH --output=./scripts/jobs/out/%x_%A.out
+
+# =============================================================================
+# RQ1 Comprehensive Evaluation: All Models on Eval Set
+# =============================================================================
+#
+# Evaluates all models for RQ1 (Baseline Comparison):
+#
+# Neural Models (evaluate.py):
+#   1. WavLM ERM    — /projects/prjs1904/runs/wavlm_erm/checkpoints/best.pt
+#   2. WavLM DANN   — /projects/prjs1904/runs/wavlm_dann/checkpoints/epoch_5_patched.pt
+#   3. W2V2 ERM     — /projects/prjs1904/runs/w2v2_erm/checkpoints/best.pt
+#   4. W2V2 DANN v1 — /projects/prjs1904/runs/w2v2_dann/checkpoints/best.pt
+#
+# Sklearn Baselines (eval_sklearn_baseline.py):
+#   5. Trillsson Logistic — /projects/prjs1904/runs/trillsson_logistic/model.joblib
+#   6. Trillsson MLP      — /projects/prjs1904/runs/trillsson_mlp/model.joblib
+#   7. LFCC-GMM           — /projects/prjs1904/runs/lfcc_gmm_32/model.joblib
+#
+# Requirements:
+#   - Full eval (no --quick-eval)
+#   - Per-domain breakdown (--per-domain)
+#   - wandb logging (--wandb)
+#   - Feature extraction for eval split (Trillsson & LFCC)
+#
+# Time estimate: 4-6 hours
+# Memory: 64G (for feature extraction caching)
+#
+# Usage:
+#   sbatch scripts/jobs/evaluate_all_rq1.job
+# =============================================================================
+
+set -euo pipefail
+
+# Create Slurm output directory if it doesn't exist
+mkdir -p ./scripts/jobs/out
+
+module purge
+module load 2025
+
+# Navigate to repo root (avoid Slurm spool dir)
+if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
+  cd "$SLURM_SUBMIT_DIR"
+fi
+if [[ ! -f "pyproject.toml" ]]; then
+  echo "ERROR: pyproject.toml not found in $(pwd). Set SLURM_SUBMIT_DIR or run from repo root." >&2
+  exit 1
+fi
+echo "Repo root: $(pwd)"
+echo "SLURM_SUBMIT_DIR: ${SLURM_SUBMIT_DIR:-}"
+
+# Install uv if not already installed (fallback for HPC where curl may be restricted)
+export PATH="$HOME/.local/bin:$PATH"
+if ! command -v uv &> /dev/null; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh || {
+        echo "ERROR: uv not found and installation failed. Please install uv manually." >&2
+        exit 1
+    }
+fi
+uv sync --locked
+
+# Verify CUDA availability
+uv run python - <<'EOF'
+import torch
+print(f"CUDA available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"GPU device count: {torch.cuda.device_count()}")
+    print(f"Active GPU: {torch.cuda.get_device_name(0)}")
+EOF
+echo ""
+
+# Load env + require ASVSPOOF5_ROOT
+# shellcheck disable=SC1091
+source scripts/jobs/_job_common.sh
+load_and_require_asvspoof5_root
+
+# Optional defaults
+export WANDB_PROJECT=${WANDB_PROJECT:-asvspoof5-dann}
+
+# Checkpoint base path (absolute for Snellius)
+RUNS_DIR="${RUNS_DIR:-/projects/prjs1904/runs}"
+FEATURES_DIR="${FEATURES_DIR:-/projects/prjs1904/features}"
+
+# Output directory for summary
+EVAL_SUMMARY_DIR="${RUNS_DIR}/rq1_eval_summary"
+mkdir -p "${EVAL_SUMMARY_DIR}"
+
+echo ""
+echo "================================================================="
+echo "RQ1 COMPREHENSIVE EVALUATION - $(date)"
+echo "================================================================="
+echo "RUNS_DIR: ${RUNS_DIR}"
+echo "FEATURES_DIR: ${FEATURES_DIR}"
+echo "EVAL_SUMMARY_DIR: ${EVAL_SUMMARY_DIR}"
+echo "================================================================="
+echo ""
+
+# Initialize results tracking
+declare -A EVAL_RESULTS
+
+log_result() {
+    local model_name="$1"
+    local eer="$2"
+    local min_dcf="$3"
+    EVAL_RESULTS["${model_name}_eer"]="$eer"
+    EVAL_RESULTS["${model_name}_mindcf"]="$min_dcf"
+    echo "  → ${model_name}: EER=${eer}, minDCF=${min_dcf}"
+}
+
+# =============================================================================
+# PHASE 1: Neural Model Evaluation
+# =============================================================================
+echo ""
+echo "================================================================="
+echo "PHASE 1: Neural Model Evaluation (evaluate.py)"
+echo "================================================================="
+
+# 1. WavLM ERM
+echo ""
+echo "--- [1/7] WavLM ERM ---"
+WAVLM_ERM_CKPT="${RUNS_DIR}/wavlm_erm/checkpoints/best.pt"
+if [[ -f "${WAVLM_ERM_CKPT}" ]]; then
+    srun uv run python scripts/evaluate.py \
+        --checkpoint "${WAVLM_ERM_CKPT}" \
+        --split eval \
+        --per-domain \
+        --wandb
+    # Extract EER from metrics.json
+    WAVLM_ERM_METRICS="${RUNS_DIR}/wavlm_erm/eval_eval/metrics.json"
+    if [[ -f "${WAVLM_ERM_METRICS}" ]]; then
+        WAVLM_ERM_EER=$(uv run python -c "import json; m=json.load(open('${WAVLM_ERM_METRICS}')); print(f\"{m['eer']:.4f}\")")
+        WAVLM_ERM_MINDCF=$(uv run python -c "import json; m=json.load(open('${WAVLM_ERM_METRICS}')); print(f\"{m['min_dcf']:.4f}\")")
+        log_result "wavlm_erm" "$WAVLM_ERM_EER" "$WAVLM_ERM_MINDCF"
+    fi
+else
+    echo "WARNING: Checkpoint not found: ${WAVLM_ERM_CKPT}"
+fi
+
+# 2. WavLM DANN (epoch 5 patched - verified 7.19% checkpoint)
+echo ""
+echo "--- [2/7] WavLM DANN (epoch_5_patched) ---"
+WAVLM_DANN_CKPT="${RUNS_DIR}/wavlm_dann/checkpoints/epoch_5_patched.pt"
+if [[ -f "${WAVLM_DANN_CKPT}" ]]; then
+    srun uv run python scripts/evaluate.py \
+        --checkpoint "${WAVLM_DANN_CKPT}" \
+        --split eval \
+        --per-domain \
+        --output-dir "${RUNS_DIR}/wavlm_dann/eval_eval_epoch5" \
+        --wandb
+    WAVLM_DANN_METRICS="${RUNS_DIR}/wavlm_dann/eval_eval_epoch5/metrics.json"
+    if [[ -f "${WAVLM_DANN_METRICS}" ]]; then
+        WAVLM_DANN_EER=$(uv run python -c "import json; m=json.load(open('${WAVLM_DANN_METRICS}')); print(f\"{m['eer']:.4f}\")")
+        WAVLM_DANN_MINDCF=$(uv run python -c "import json; m=json.load(open('${WAVLM_DANN_METRICS}')); print(f\"{m['min_dcf']:.4f}\")")
+        log_result "wavlm_dann" "$WAVLM_DANN_EER" "$WAVLM_DANN_MINDCF"
+    fi
+else
+    echo "WARNING: Checkpoint not found: ${WAVLM_DANN_CKPT}"
+fi
+
+# 3. W2V2 ERM
+echo ""
+echo "--- [3/7] Wav2Vec2 ERM ---"
+W2V2_ERM_CKPT="${RUNS_DIR}/w2v2_erm/checkpoints/best.pt"
+if [[ -f "${W2V2_ERM_CKPT}" ]]; then
+    srun uv run python scripts/evaluate.py \
+        --checkpoint "${W2V2_ERM_CKPT}" \
+        --split eval \
+        --per-domain \
+        --wandb
+    W2V2_ERM_METRICS="${RUNS_DIR}/w2v2_erm/eval_eval/metrics.json"
+    if [[ -f "${W2V2_ERM_METRICS}" ]]; then
+        W2V2_ERM_EER=$(uv run python -c "import json; m=json.load(open('${W2V2_ERM_METRICS}')); print(f\"{m['eer']:.4f}\")")
+        W2V2_ERM_MINDCF=$(uv run python -c "import json; m=json.load(open('${W2V2_ERM_METRICS}')); print(f\"{m['min_dcf']:.4f}\")")
+        log_result "w2v2_erm" "$W2V2_ERM_EER" "$W2V2_ERM_MINDCF"
+    fi
+else
+    echo "WARNING: Checkpoint not found: ${W2V2_ERM_CKPT}"
+fi
+
+# 4. W2V2 DANN v1
+echo ""
+echo "--- [4/7] Wav2Vec2 DANN ---"
+W2V2_DANN_CKPT="${RUNS_DIR}/w2v2_dann/checkpoints/best.pt"
+if [[ -f "${W2V2_DANN_CKPT}" ]]; then
+    srun uv run python scripts/evaluate.py \
+        --checkpoint "${W2V2_DANN_CKPT}" \
+        --split eval \
+        --per-domain \
+        --wandb
+    W2V2_DANN_METRICS="${RUNS_DIR}/w2v2_dann/eval_eval/metrics.json"
+    if [[ -f "${W2V2_DANN_METRICS}" ]]; then
+        W2V2_DANN_EER=$(uv run python -c "import json; m=json.load(open('${W2V2_DANN_METRICS}')); print(f\"{m['eer']:.4f}\")")
+        W2V2_DANN_MINDCF=$(uv run python -c "import json; m=json.load(open('${W2V2_DANN_METRICS}')); print(f\"{m['min_dcf']:.4f}\")")
+        log_result "w2v2_dann" "$W2V2_DANN_EER" "$W2V2_DANN_MINDCF"
+    fi
+else
+    echo "WARNING: Checkpoint not found: ${W2V2_DANN_CKPT}"
+fi
+
+# =============================================================================
+# PHASE 2: Feature Extraction for Sklearn Baselines (if needed)
+# =============================================================================
+echo ""
+echo "================================================================="
+echo "PHASE 2: Feature Extraction for Sklearn Baselines"
+echo "================================================================="
+
+# Check if TRILLsson eval features exist
+TRILLSSON_FEATURES="${FEATURES_DIR}/trillsson"
+TRILLSSON_EVAL_NPY="${TRILLSSON_FEATURES}/eval.npy"
+
+if [[ ! -f "${TRILLSSON_EVAL_NPY}" ]]; then
+    echo "TRILLsson eval features not found. Extracting..."
+    echo "NOTE: TRILLsson extraction requires TensorFlow. If not available,"
+    echo "      please extract features locally and upload to: ${TRILLSSON_FEATURES}"
+
+    # Try TensorFlow extraction (may fail if TF not installed)
+    TRILLSSON_VENV="${HOME}/.trillsson-venv"
+    if [[ -f "${TRILLSSON_VENV}/bin/activate" ]]; then
+        source "${TRILLSSON_VENV}/bin/activate"
+        export PYTHONPATH="${PWD}/src:${PYTHONPATH:-}"
+        export TFHUB_CACHE_DIR="${ASVSPOOF5_ROOT}/../.cache/tfhub"
+        mkdir -p "${TFHUB_CACHE_DIR}"
+        mkdir -p "${TRILLSSON_FEATURES}"
+
+        srun python scripts/extract_trillsson.py \
+            --split eval \
+            --output-dir "${TRILLSSON_FEATURES}" \
+            --model trillsson3 \
+            --batch-size 64 \
+            --max-duration 6.0 || echo "WARNING: TRILLsson extraction failed"
+
+        deactivate
+    else
+        echo "WARNING: TRILLsson venv not found at ${TRILLSSON_VENV}"
+        echo "         Run scripts/jobs/run_trillsson.job first to set up the environment"
+    fi
+else
+    echo "TRILLsson eval features found: ${TRILLSSON_EVAL_NPY}"
+fi
+
+# Check if LFCC eval features exist
+LFCC_FEATURES="${FEATURES_DIR}/lfcc"
+LFCC_EVAL_NPY="${LFCC_FEATURES}/eval.npy"
+
+if [[ ! -f "${LFCC_EVAL_NPY}" ]]; then
+    echo "LFCC eval features not found. Extracting..."
+    mkdir -p "${LFCC_FEATURES}"
+    srun uv run python scripts/extract_lfcc.py \
+        --split eval \
+        --output-dir "${LFCC_FEATURES}" || echo "WARNING: LFCC extraction failed"
+else
+    echo "LFCC eval features found: ${LFCC_EVAL_NPY}"
+fi
+
+# =============================================================================
+# PHASE 3: Sklearn Baseline Evaluation
+# =============================================================================
+echo ""
+echo "================================================================="
+echo "PHASE 3: Sklearn Baseline Evaluation (eval_sklearn_baseline.py)"
+echo "================================================================="
+
+# 5. Trillsson Logistic
+echo ""
+echo "--- [5/7] Trillsson Logistic ---"
+TRILLSSON_LOG_MODEL="${RUNS_DIR}/trillsson_logistic/model.joblib"
+if [[ -f "${TRILLSSON_LOG_MODEL}" ]] && [[ -f "${TRILLSSON_EVAL_NPY}" ]]; then
+    srun uv run python scripts/eval_sklearn_baseline.py \
+        --model-path "${TRILLSSON_LOG_MODEL}" \
+        --features-dir "${TRILLSSON_FEATURES}" \
+        --split eval \
+        --model-type trillsson \
+        --per-domain \
+        --wandb \
+        --run-name "trillsson_logistic"
+    TRILL_LOG_METRICS="${RUNS_DIR}/trillsson_logistic/eval_eval/metrics.json"
+    if [[ -f "${TRILL_LOG_METRICS}" ]]; then
+        TRILL_LOG_EER=$(uv run python -c "import json; m=json.load(open('${TRILL_LOG_METRICS}')); print(f\"{m['eer']:.4f}\")")
+        TRILL_LOG_MINDCF=$(uv run python -c "import json; m=json.load(open('${TRILL_LOG_METRICS}')); print(f\"{m['min_dcf']:.4f}\")")
+        log_result "trillsson_logistic" "$TRILL_LOG_EER" "$TRILL_LOG_MINDCF"
+    fi
+else
+    echo "WARNING: Model or features not found for Trillsson Logistic"
+    echo "  Model: ${TRILLSSON_LOG_MODEL}"
+    echo "  Features: ${TRILLSSON_EVAL_NPY}"
+fi
+
+# 6. Trillsson MLP
+echo ""
+echo "--- [6/7] Trillsson MLP ---"
+TRILLSSON_MLP_MODEL="${RUNS_DIR}/trillsson_mlp/model.joblib"
+if [[ -f "${TRILLSSON_MLP_MODEL}" ]] && [[ -f "${TRILLSSON_EVAL_NPY}" ]]; then
+    srun uv run python scripts/eval_sklearn_baseline.py \
+        --model-path "${TRILLSSON_MLP_MODEL}" \
+        --features-dir "${TRILLSSON_FEATURES}" \
+        --split eval \
+        --model-type trillsson \
+        --per-domain \
+        --wandb \
+        --run-name "trillsson_mlp"
+    TRILL_MLP_METRICS="${RUNS_DIR}/trillsson_mlp/eval_eval/metrics.json"
+    if [[ -f "${TRILL_MLP_METRICS}" ]]; then
+        TRILL_MLP_EER=$(uv run python -c "import json; m=json.load(open('${TRILL_MLP_METRICS}')); print(f\"{m['eer']:.4f}\")")
+        TRILL_MLP_MINDCF=$(uv run python -c "import json; m=json.load(open('${TRILL_MLP_METRICS}')); print(f\"{m['min_dcf']:.4f}\")")
+        log_result "trillsson_mlp" "$TRILL_MLP_EER" "$TRILL_MLP_MINDCF"
+    fi
+else
+    echo "WARNING: Model or features not found for Trillsson MLP"
+fi
+
+# 7. LFCC-GMM
+echo ""
+echo "--- [7/7] LFCC-GMM ---"
+LFCC_GMM_MODEL="${RUNS_DIR}/lfcc_gmm_32/model.joblib"
+if [[ -f "${LFCC_GMM_MODEL}" ]] && [[ -f "${LFCC_EVAL_NPY}" ]]; then
+    srun uv run python scripts/eval_sklearn_baseline.py \
+        --model-path "${LFCC_GMM_MODEL}" \
+        --features-dir "${LFCC_FEATURES}" \
+        --split eval \
+        --model-type lfcc_gmm \
+        --per-domain \
+        --wandb \
+        --run-name "lfcc_gmm_32"
+    LFCC_GMM_METRICS="${RUNS_DIR}/lfcc_gmm_32/eval_eval/metrics.json"
+    if [[ -f "${LFCC_GMM_METRICS}" ]]; then
+        LFCC_GMM_EER=$(uv run python -c "import json; m=json.load(open('${LFCC_GMM_METRICS}')); print(f\"{m['eer']:.4f}\")")
+        LFCC_GMM_MINDCF=$(uv run python -c "import json; m=json.load(open('${LFCC_GMM_METRICS}')); print(f\"{m['min_dcf']:.4f}\")")
+        log_result "lfcc_gmm" "$LFCC_GMM_EER" "$LFCC_GMM_MINDCF"
+    fi
+else
+    echo "WARNING: Model or features not found for LFCC-GMM"
+fi
+
+# =============================================================================
+# PHASE 4: Generate Summary Report
+# =============================================================================
+echo ""
+echo "================================================================="
+echo "PHASE 4: Generating RQ1 Summary Report"
+echo "================================================================="
+
+SUMMARY_FILE="${EVAL_SUMMARY_DIR}/rq1_summary_$(date +%Y%m%d_%H%M%S).md"
+SUMMARY_JSON="${EVAL_SUMMARY_DIR}/rq1_results.json"
+
+# Collect all metrics into JSON
+uv run python - <<PYSCRIPT
+import json
+import os
+from pathlib import Path
+from datetime import datetime
+
+RUNS_DIR = "${RUNS_DIR}"
+
+models = [
+    ("WavLM ERM", "wavlm_erm", "eval_eval"),
+    ("WavLM DANN", "wavlm_dann", "eval_eval_epoch5"),
+    ("W2V2 ERM", "w2v2_erm", "eval_eval"),
+    ("W2V2 DANN", "w2v2_dann", "eval_eval"),
+    ("Trillsson Logistic", "trillsson_logistic", "eval_eval"),
+    ("Trillsson MLP", "trillsson_mlp", "eval_eval"),
+    ("LFCC-GMM", "lfcc_gmm_32", "eval_eval"),
+]
+
+results = {
+    "timestamp": datetime.utcnow().isoformat() + "Z",
+    "split": "eval",
+    "models": []
+}
+
+for display_name, run_name, eval_dir in models:
+    metrics_path = Path(RUNS_DIR) / run_name / eval_dir / "metrics.json"
+
+    entry = {
+        "name": display_name,
+        "run_name": run_name,
+        "eval_eer": None,
+        "eval_mindcf": None,
+        "dev_eer": None,
+        "ood_gap": None,
+    }
+
+    # Load eval metrics
+    if metrics_path.exists():
+        with open(metrics_path) as f:
+            m = json.load(f)
+            entry["eval_eer"] = m.get("eer")
+            entry["eval_mindcf"] = m.get("min_dcf")
+
+    # Load dev metrics (if exists) - evaluate.py writes to eval_dev/metrics.json
+    dev_metrics_path = Path(RUNS_DIR) / run_name / "eval_dev" / "metrics.json"
+    if dev_metrics_path.exists():
+        with open(dev_metrics_path) as f:
+            m = json.load(f)
+            # Try different key names (use 'is not None' to allow 0.0)
+            entry["dev_eer"] = m.get("val_eer") if m.get("val_eer") is not None else m.get("dev_eer") if m.get("dev_eer") is not None else m.get("eer")
+
+    # Calculate OOD gap
+    if entry["dev_eer"] is not None and entry["eval_eer"] is not None:
+        entry["ood_gap"] = entry["eval_eer"] - entry["dev_eer"]
+
+    results["models"].append(entry)
+
+# Save JSON results
+with open("${SUMMARY_JSON}", "w") as f:
+    json.dump(results, f, indent=2)
+
+print(f"Saved JSON results to: ${SUMMARY_JSON}")
+
+# Generate Markdown report
+md = f"""# RQ1 Evaluation Summary
+
+Generated: {results['timestamp']}
+Split: eval
+
+## Results Table
+
+| Model | Dev EER (%) | Eval EER (%) | minDCF | OOD Gap (%) |
+|-------|-------------|--------------|--------|-------------|
+"""
+
+for m in results["models"]:
+    dev_eer = f"{m['dev_eer']*100:.2f}" if m['dev_eer'] is not None else "N/A"
+    eval_eer = f"{m['eval_eer']*100:.2f}" if m['eval_eer'] is not None else "N/A"
+    mindcf = f"{m['eval_mindcf']:.4f}" if m['eval_mindcf'] is not None else "N/A"
+    ood_gap = f"{m['ood_gap']*100:+.2f}" if m['ood_gap'] is not None else "N/A"
+    md += f"| {m['name']} | {dev_eer} | {eval_eer} | {mindcf} | {ood_gap} |\n"
+
+md += """
+## Key Findings
+
+- **Best Eval EER:** {best_model}
+- **Smallest OOD Gap:** {smallest_gap_model}
+
+## Notes
+
+- WavLM DANN uses epoch_5_patched checkpoint (verified 7.19% dev EER)
+- OOD Gap = Eval EER - Dev EER (positive = degradation on unseen data)
+- All metrics computed on full eval set with per-domain breakdown
+
+## Per-Domain Results
+
+Individual per-domain results are saved in each model's eval directory:
+- `{RUNS_DIR}/<model>/eval_eval/tables/`
+"""
+
+# Find best models
+eval_eers = [(m['name'], m['eval_eer']) for m in results['models'] if m['eval_eer'] is not None]
+if eval_eers:
+    best = min(eval_eers, key=lambda x: x[1])
+    md = md.replace("{best_model}", f"{best[0]} ({best[1]*100:.2f}%)")
+else:
+    md = md.replace("{best_model}", "N/A")
+
+ood_gaps = [(m['name'], abs(m['ood_gap'])) for m in results['models'] if m['ood_gap'] is not None]
+if ood_gaps:
+    smallest = min(ood_gaps, key=lambda x: x[1])
+    md = md.replace("{smallest_gap_model}", f"{smallest[0]} ({smallest[1]*100:.2f}%)")
+else:
+    md = md.replace("{smallest_gap_model}", "N/A")
+
+md = md.replace("{RUNS_DIR}", RUNS_DIR)
+
+with open("${SUMMARY_FILE}", "w") as f:
+    f.write(md)
+
+print(f"Saved Markdown report to: ${SUMMARY_FILE}")
+print()
+print("=" * 60)
+print("RQ1 EVALUATION COMPLETE")
+print("=" * 60)
+print()
+
+# Print summary table to stdout
+print("| Model | Dev EER | Eval EER | minDCF | OOD Gap |")
+print("|-------|---------|----------|--------|---------|")
+for m in results["models"]:
+    dev_eer = f"{m['dev_eer']*100:.2f}%" if m['dev_eer'] is not None else "N/A"
+    eval_eer = f"{m['eval_eer']*100:.2f}%" if m['eval_eer'] is not None else "N/A"
+    mindcf = f"{m['eval_mindcf']:.4f}" if m['eval_mindcf'] is not None else "N/A"
+    ood_gap = f"{m['ood_gap']*100:+.2f}%" if m['ood_gap'] is not None else "N/A"
+    print(f"| {m['name']:<19} | {dev_eer:>7} | {eval_eer:>8} | {mindcf:>6} | {ood_gap:>7} |")
+PYSCRIPT
+
+echo ""
+echo "================================================================="
+echo "RQ1 EVALUATION COMPLETE - $(date)"
+echo "================================================================="
+echo ""
+echo "Summary files:"
+echo "  JSON: ${SUMMARY_JSON}"
+echo "  Markdown: ${SUMMARY_FILE}"
+echo ""
+echo "Individual model results in: ${RUNS_DIR}/<model>/eval_eval/"
+echo "================================================================="

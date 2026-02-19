@@ -1,0 +1,5 @@
+Model,Method,Dev EER,Eval EER,Gap (pp),Gap Reduction
+WavLM,ERM,3.46%,8.48%,+5.03,-
+WavLM,DANN,4.44%,7.36%,+2.92,41.9%
+Wav2Vec2,ERM,4.81%,15.15%,+10.34,-
+Wav2Vec2,DANN,5.29%,14.37%,+9.08,12.2%

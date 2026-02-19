@@ -1,0 +1,37 @@
+#!/bin/bash
+#SBATCH --partition=gpu_mig
+#SBATCH --gpus=1
+#SBATCH --job-name=EvalDANN_E5
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --time=01:00:00
+#SBATCH --output=./scripts/jobs/out/%x_%A.out
+
+# Quick eval of epoch_5 checkpoint to check if it's the good one (7.19% EER)
+
+module purge
+module load 2025
+
+if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
+  cd "$SLURM_SUBMIT_DIR"
+fi
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --locked
+
+source scripts/jobs/_job_common.sh
+load_and_require_asvspoof5_root
+
+export WANDB_PROJECT=${WANDB_PROJECT:-asvspoof5-dann}
+
+RUNS_DIR="${RUNS_DIR:-/projects/prjs1904/runs}"
+
+echo "=== Evaluating WavLM DANN epoch_5.pt ==="
+srun uv run python scripts/evaluate.py \
+    --checkpoint "${RUNS_DIR}/wavlm_dann/checkpoints/epoch_5.pt" \
+    --split eval \
+    --per-domain \
+    --wandb
+
+echo "Done!"

@@ -9,9 +9,12 @@ from .domain_eval import (
 from .metrics import (
     bootstrap_metric,
     compute_act_dcf,
+    compute_auc,
     compute_cllr,
     compute_eer,
     compute_min_dcf,
+    compute_tdcf,
+    compute_threshold_metrics,
 )
 from .reports import (
     generate_overall_metrics,
@@ -28,6 +31,9 @@ __all__ = [
     "compute_min_dcf",
     "compute_cllr",
     "compute_act_dcf",
+    "compute_auc",
+    "compute_threshold_metrics",
+    "compute_tdcf",
     "bootstrap_metric",
     # Domain evaluation
     "evaluate_per_domain",

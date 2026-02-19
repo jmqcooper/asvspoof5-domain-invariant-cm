@@ -1,0 +1,188 @@
+# Wav2Vec 2.0 Base DANN v2 Configuration
+# Optimized for Wav2Vec2 based on codec probe analysis
+#
+# ============================================================================
+# DESIGN RATIONALE (based on probe analysis from compare_backbone_codec_probes.py)
+# ============================================================================
+#
+# Problem: Wav2Vec2 underperforms WavLM on DANN despite similar ERM baselines.
+#
+# Probe findings:
+#   - WavLM: 79.8% mean codec probe accuracy, uniform across layers (94%→72%)
+#   - Wav2Vec2: 63.0% mean accuracy, DROPS SHARPLY in late layers (77%→51%)
+#   - Late layers (9-12) are near random chance (33% for 3-way codec classification)
+#
+# Key insight: DANN works by using the GRL to remove domain (codec) information
+# from the feature representation. If layers DON'T ENCODE codec info, the GRL
+# has nothing to remove - it's pushing on an open door.
+#
+# Changes from v1:
+#
+# 1. LAYER SELECTION: first_k instead of weighted
+#    - Old: method=weighted uses all 12 layers with learned weights
+#    - New: method=first_k (k=6) uses ONLY layers 1-6
+#    - Why: First 6 layers have higher codec probe accuracy (~65-77%)
+#           Late layers (9-12) are near-random (~51%), useless for DANN
+#           Focusing on informative layers gives GRL something to work with
+#
+# 2. STRONGER GRADIENT REVERSAL: lambda 0.1→0.85 (was 0.01→1.0)
+#    - Old: exponential schedule 0.01→1.0, no warmup
+#    - New: linear schedule 0.1→0.85, 3 epoch warmup
+#    - Why: Wav2Vec2 has less codec info to begin with (63% vs 79.8%)
+#           Needs stronger adversarial pressure to achieve domain invariance
+#           But capped at 0.85 (not 1.0) to prevent gradient explosion
+#           Linear schedule is more stable than exponential (see issue #62)
+#
+# 3. WARMUP EPOCHS: Added 3 epoch warmup
+#    - Why: Let feature extractor stabilize before adversarial pressure
+#           Matches WavLM config which has proven stable
+#
+# Future work (requires codebase changes):
+#   - Partial backbone unfreezing: unfreeze last 2-3 transformer layers
+#     to let them learn codec-discriminative features that GRL can then remove
+#   - See probe script recommendation: "Try unfreezing top layers of wav2vec2 backbone"
+#
+# ============================================================================
+
+# Backbone
+backbone:
+  name: wav2vec2_base
+  pretrained: facebook/wav2vec2-base
+  num_layers: 12
+  hidden_size: 768
+  freeze: true  # TODO: implement partial unfreezing for top layers
+
+  layer_selection:
+    # Changed from weighted to first_k based on probe analysis
+    # Late layers (9-12) have ~51% codec accuracy (near 33% chance)
+    # First 6 layers have ~65-77% accuracy - actual codec info for GRL to remove
+    method: first_k
+    k: 6
+    init_lower_bias: true  # Still helpful even for first_k
+
+# Pooling
+pooling:
+  method: stats  # mean+std concatenation
+
+# Projection head
+projection:
+  input_dim: 1536  # 768 * 2 for stats pooling
+  hidden_dim: 512
+  output_dim: 256
+  num_layers: 2
+  dropout: 0.1
+
+# Task classifier
+classifier:
+  input_dim: 256
+  num_classes: 2
+  hidden_dim: 0  # Direct linear
+  dropout: 0.1
+
+# Training
+training:
+  method: dann
+
+  optimizer:
+    name: adamw
+    lr: 5.0e-5  # Keep same as v1
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+
+  scheduler:
+    name: cosine
+    warmup_steps: 2000
+    min_lr: 1.0e-6
+
+  max_epochs: 50
+  patience: 10
+  min_delta: 0.001
+  train_loss_threshold: 0.0  # Disable train-loss early stopping for DANN
+  plateau_patience: 3
+  gradient_clip: 0.5
+  nan_grad_abort_count: 5
+
+  save_every_n_epochs: 5
+  save_best_only: true
+  monitor_metric: eer
+  monitor_mode: min
+
+# Loss
+loss:
+  task:
+    name: cross_entropy
+    weight: 1.0
+    label_smoothing: 0.0
+
+  domain:
+    codec:
+      name: cross_entropy
+      weight: 1.0
+    codec_q:
+      name: cross_entropy
+      weight: 1.0
+
+# DANN-specific settings
+# Key changes: linear schedule with warmup and higher lambda cap
+dann:
+  lambda_: 0.1  # Initial value (matches schedule start)
+
+  lambda_schedule:
+    enabled: true
+    # Linear schedule is more stable than exponential (issue #62)
+    type: linear
+    start: 0.1   # Same as WavLM - moderate initial pressure
+    end: 0.85    # Higher than WavLM (0.75) since wav2vec2 has less codec info
+                 # but still capped below 1.0 for stability
+    warmup_epochs: 3  # Let feature extractor stabilize first
+
+  discriminator:
+    input_dim: 1536   # stats pooling output (768*2)
+    hidden_dim: 512
+    dropout: 0.1
+
+# Synthetic codec augmentation (REQUIRED for meaningful DANN on ASVspoof5)
+augmentation:
+  enabled: true
+  codec_prob: 0.5
+  codecs: [MP3, AAC, OPUS]
+  qualities: [1, 2, 3, 4, 5]
+  cache_dir: null
+  use_synthetic_labels: true
+
+# Audio
+audio:
+  sample_rate: 16000
+  max_duration_sec: 6.0
+
+# Dataloader
+dataloader:
+  batch_size: 256
+  num_workers: 8
+  pin_memory: true
+  drop_last: true
+  prefetch_factor: 4
+  persistent_workers: true
+
+# Logging
+# Note: layer_weights and domain accuracy are logged unconditionally by the training loop
+logging:
+  log_every_n_steps: 50
+  val_every_n_epochs: 1
+  log_domain_breakdown_every: 5
+  json_logs: true
+  log_batch_samples: 0.02
+  track_gradients: true
+
+# Wandb
+wandb:
+  enabled: true
+  project: asvspoof5-dann
+  entity: null
+  tags: ["wav2vec2", "dann", "track1", "v2", "first_k", "probe-optimized"]
+  log_model: true
+  log_code: true
+
+# Reproducibility
+seed: 42
+deterministic: true

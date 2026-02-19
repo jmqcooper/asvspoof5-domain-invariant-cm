@@ -1,0 +1,10 @@
+{
+  "classifier": "mlp",
+  "embedding_dim": 1024,
+  "train_samples": 182357,
+  "val_samples": 140950,
+  "val_accuracy": 0.6191557289819085,
+  "val_eer": 0.20320359489660267,
+  "val_min_dcf": 1.0,
+  "eer_threshold": 1.0
+}

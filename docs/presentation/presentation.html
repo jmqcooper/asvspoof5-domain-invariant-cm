@@ -506,16 +506,33 @@
                 </p>
             </section>
 
-            <!-- Slide 11: RQ4 CKA (CHANGED: expanded explanation) -->
+            <!-- RQ4: What causes invariance? — Pooling Weights -->
             <section>
-                <h2>RQ4: What Components Cause Invariance?</h2>
-                <div class="card-green card" style="font-size: 1.1em; margin-bottom: 0.5em;">
-                    <strong>✓ Pooling weights + projection head.</strong> CKA shows layer 11 diverges (0.098)
+                <h2>RQ4: Where Does Invariance Come From?</h2>
+                <div class="card-green card" style="font-size: 1.05em; margin-bottom: 0.5em;">
+                    <strong>✓ Pooling weights + projection head — not the frozen backbone.</strong>
+                </div>
+                <div class="figure-container" style="margin-bottom: 0.3em;">
+                    <img src="../../figures/rq4/pooling_weights_comparison.png" alt="Pooling Weights Comparison" style="max-height: 300px;">
+                    <div class="figure-caption">Learned layer pooling weights (softmax-normalized). DANN redistributes attention from early layers (L0–L2) to middle layers (L3–L5) where task-relevant features dominate over codec artifacts.</div>
+                </div>
+                <ul style="font-size: 0.85em; margin-top: 0.3em;">
+                    <li>Backbone is <strong>frozen</strong> — hidden states are identical between ERM and DANN</li>
+                    <li>All invariance arises from <strong>learnable pooling weights</strong> + downstream projection</li>
+                    <li>ERM favours lower layers (L0 = 12.7%); DANN shifts to mid-layers (L4 = 11.1%)</li>
+                </ul>
+            </section>
+
+            <!-- RQ4: CKA Analysis -->
+            <section>
+                <h2>RQ4: Weighted Contribution Similarity (CKA)</h2>
+                <div class="card" style="font-size: 0.85em; margin-bottom: 0.5em; background: #fffbea; border-left: 3px solid #f59e0b;">
+                    CKA computed on <em>weighted layer contributions</em> (hidden state × pooling weight), not raw hidden states. Raw hidden states have CKA ≈ 1.000 since the backbone is frozen.
                 </div>
                 <div class="two-col" style="gap: 1em;">
                     <div class="figure-container">
                         <img src="../../figures/rq4/cka_layer_divergence.png" alt="CKA Layer Divergence" style="max-height: 280px;">
-                        <div class="figure-caption">CKA similarity per layer</div>
+                        <div class="figure-caption">Weighted contribution CKA per layer — upper layers diverge most</div>
                     </div>
                     <div class="figure-container">
                         <img src="../../figures/rq4/intervention_comparison.png" alt="Intervention Comparison" style="max-height: 280px;">

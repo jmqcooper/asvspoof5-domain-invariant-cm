@@ -1,0 +1,98 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=MultiSeed
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=48:00:00
+#SBATCH --array=1-5
+#SBATCH --output=./scripts/jobs/out/%x_%A_%a.out
+
+# =============================================================================
+# Multi-Seed Training + Evaluation
+#
+# Usage:  sbatch scripts/jobs/train_multi_seed.job wavlm_dann
+#
+# Runs training with 5 seeds (array job), then evaluates on dev and eval splits.
+# Seeds: 42, 123, 456, 789, 1337
+# =============================================================================
+
+set -euo pipefail
+
+CONFIG="${1:?Usage: sbatch train_multi_seed.job <config_name>}"
+
+# Map array task ID → seed
+SEEDS=(42 123 456 789 1337)
+SEED=${SEEDS[$((SLURM_ARRAY_TASK_ID - 1))]}
+RUN_NAME="${CONFIG}_seed${SEED}"
+
+echo "=== Multi-Seed Training ==="
+echo "Config: ${CONFIG}"
+echo "Seed: ${SEED} (task ${SLURM_ARRAY_TASK_ID}/5)"
+echo "Run name: ${RUN_NAME}"
+echo ""
+
+module purge
+module load 2025
+
+# Navigate to repo root
+if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
+  cd "$SLURM_SUBMIT_DIR"
+fi
+if [[ ! -f "pyproject.toml" ]]; then
+  echo "ERROR: pyproject.toml not found in $(pwd)." >&2
+  exit 1
+fi
+echo "Repo root: $(pwd)"
+
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --locked
+
+# Load env + require ASVSPOOF5_ROOT
+# shellcheck disable=SC1091
+source scripts/jobs/_job_common.sh
+load_and_require_asvspoof5_root
+
+export WANDB_PROJECT=${WANDB_PROJECT:-asvspoof5-dann}
+export HF_HOME=${HF_HOME:-/scratch-shared/$USER/.cache/huggingface}
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+# Load ffmpeg for DANN configs (needed for codec augmentation)
+if [[ "$CONFIG" == *dann* ]]; then
+  load_ffmpeg_module
+  echo "Checking ffmpeg encoder support..."
+  check_ffmpeg_encoders_or_fail
+  echo "ffmpeg encoders OK."
+fi
+echo ""
+
+# ── Train ────────────────────────────────────────────────────────────────────
+echo "=== Training ${RUN_NAME} ==="
+srun uv run python scripts/train.py \
+    --config "configs/${CONFIG}.yaml" \
+    --name "${RUN_NAME}" \
+    --seed "${SEED}" \
+    --wandb \
+    --amp
+
+echo "Training complete!"
+echo ""
+
+# ── Evaluate ─────────────────────────────────────────────────────────────────
+PREDICTIONS_DIR="results/predictions"
+mkdir -p "${PREDICTIONS_DIR}"
+
+for SPLIT in dev eval; do
+  echo "=== Evaluating ${RUN_NAME} on ${SPLIT} ==="
+  srun uv run python scripts/evaluate.py \
+      --config "configs/${CONFIG}.yaml" \
+      --name "${RUN_NAME}" \
+      --split "${SPLIT}" \
+      --save-predictions "${PREDICTIONS_DIR}/${RUN_NAME}_${SPLIT}.csv"
+  echo "Saved predictions: ${PREDICTIONS_DIR}/${RUN_NAME}_${SPLIT}.csv"
+done
+
+echo ""
+echo "=== Done: ${RUN_NAME} ==="

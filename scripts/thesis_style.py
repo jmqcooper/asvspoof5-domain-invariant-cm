@@ -64,44 +64,6 @@ def set_style():
     })
 
 
-# Hard-coded data extracted from existing figures and tables
-DATA = {
-    'main_results': {
-        'WavLM ERM':    {'dev': 3.26, 'eval': 8.47, 'mindcf': 0.6388},
-        'WavLM DANN':   {'dev': 4.76, 'eval': 7.34, 'mindcf': 0.5853},
-        'W2V2 ERM':     {'dev': 4.24, 'eval': 15.30, 'mindcf': 1.0000},
-        'W2V2 DANN':    {'dev': 4.45, 'eval': 14.33, 'mindcf': 1.0000},
-        'WavLM ERM+Aug':{'dev': 3.26, 'eval': 7.98, 'mindcf': 0.6052},
-        'W2V2 ERM+Aug': {'dev': 4.34, 'eval': 18.02, 'mindcf': 0.9992},
-    },
-    'cka': {
-        0: 0.93, 1: 0.98, 2: 0.97, 3: 0.98, 4: 0.97, 5: 0.96,
-        6: 0.90, 7: 0.82, 8: 0.83, 9: 0.81, 10: 0.73, 11: 0.06,
-    },
-    'pooling_weights': {
-        'ERM':  [12.7, 11.4, 11.1, 10.6, 9.4, 8.5, 7.4, 6.8, 6.4, 5.8, 5.3, 4.6],
-        'DANN': [7.6, 9.7, 8.1, 10.9, 11.0, 9.9, 8.6, 8.0, 8.0, 7.2, 5.8, 5.1],
-    },
-    'projection_probes': {
-        'WavLM ERM': 0.434, 'WavLM DANN': 0.388,
-        'W2V2 ERM': 0.471, 'W2V2 DANN': 0.460,
-    },
-    'projection_probes_std': {
-        'WavLM ERM': 0.009, 'WavLM DANN': 0.009,
-        'W2V2 ERM': 0.010, 'W2V2 DANN': 0.010,
-    },
-    'per_codec': {
-        'C01': {'WavLM ERM': 7.49, 'WavLM DANN': 6.63, 'W2V2 ERM': 12.15, 'W2V2 DANN': 11.51},
-        'C02': {'WavLM ERM': 5.88, 'WavLM DANN': 5.27, 'W2V2 ERM': 12.00, 'W2V2 DANN': 10.26},
-        'C03': {'WavLM ERM': 7.90, 'WavLM DANN': 6.88, 'W2V2 ERM': 13.50, 'W2V2 DANN': 12.22},
-        'C04': {'WavLM ERM': 10.68, 'WavLM DANN': 9.32, 'W2V2 ERM': 14.82, 'W2V2 DANN': 13.46},
-        'C05': {'WavLM ERM': 6.09, 'WavLM DANN': 4.54, 'W2V2 ERM': 10.76, 'W2V2 DANN': 10.08},
-        'C06': {'WavLM ERM': 6.85, 'WavLM DANN': 5.43, 'W2V2 ERM': 12.91, 'W2V2 DANN': 12.80},
-        'C07': {'WavLM ERM': 12.50, 'WavLM DANN': 11.16, 'W2V2 ERM': 16.44, 'W2V2 DANN': 15.04},
-        'C08': {'WavLM ERM': 10.22, 'WavLM DANN': 9.66, 'W2V2 ERM': 22.60, 'W2V2 DANN': 13.65},
-        'C09': {'WavLM ERM': 9.97, 'WavLM DANN': 9.10, 'W2V2 ERM': 19.02, 'W2V2 DANN': 14.20},
-        'C10': {'WavLM ERM': 10.90, 'WavLM DANN': 10.37, 'W2V2 ERM': 21.58, 'W2V2 DANN': 15.18},
-        'C11': {'WavLM ERM': 8.19, 'WavLM DANN': 6.85, 'W2V2 ERM': 22.03, 'W2V2 DANN': 13.04},
-        'NONE': {'WavLM ERM': 5.68, 'WavLM DANN': 4.19, 'W2V2 ERM': 9.95, 'W2V2 DANN': 9.94},
-    },
-}
+# NOTE: No hardcoded DATA dict. Plotting scripts should load results
+# dynamically from prediction files or result CSVs. See e.g.
+# plot_det_curves.py which loads from predictions.tsv files.

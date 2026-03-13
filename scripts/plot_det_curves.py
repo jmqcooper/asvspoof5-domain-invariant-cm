@@ -78,9 +78,10 @@ def generate_synthetic_det(eer_pct: float, n_points: int = 500):
 
 
 def load_predictions(csv_path: Path):
-    """Load predictions CSV and return scores, labels."""
+    """Load predictions TSV/CSV and return scores, labels."""
     import pandas as pd
-    df = pd.read_csv(csv_path)
+    sep = '\t' if csv_path.suffix == '.tsv' else ','
+    df = pd.read_csv(csv_path, sep=sep)
     scores = df['score'].values
     labels = df['y_task'].values
     return scores, labels
@@ -144,10 +145,25 @@ def main():
         wavlm_models = {}
         w2v2_models = {}
         for name in ['wavlm_erm', 'wavlm_dann', 'w2v2_erm', 'w2v2_dann']:
-            csv_path = pred_dir / f'{name}_eval.csv'
-            if not csv_path.exists():
-                print(f'Warning: {csv_path} not found, skipping {name}')
+            # Try multiple naming conventions:
+            # 1. {name}_eval.csv (legacy)
+            # 2. {name}_eval/predictions.tsv (multi-seed job output)
+            # 3. ../runs/{name}/eval_eval_full/predictions.tsv (existing results)
+            candidates = [
+                pred_dir / f'{name}_eval.csv',
+                pred_dir / f'{name}_eval' / 'predictions.tsv',
+                pred_dir.parent / 'runs' / name / 'eval_eval_full' / 'predictions.tsv',
+                pred_dir.parent / 'runs' / name / 'eval_eval' / 'predictions.tsv',
+            ]
+            csv_path = None
+            for c in candidates:
+                if c.exists():
+                    csv_path = c
+                    break
+            if csv_path is None:
+                print(f'Warning: no predictions found for {name}, skipping')
                 continue
+            print(f'Loading {name} from {csv_path}')
             scores, labels = load_predictions(csv_path)
             far, frr = compute_far_frr(scores, labels)
             eer, _, _ = find_eer(far, frr)

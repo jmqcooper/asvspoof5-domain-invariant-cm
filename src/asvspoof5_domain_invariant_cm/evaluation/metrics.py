@@ -65,22 +65,27 @@ def compute_min_dcf(
     scores: np.ndarray,
     labels: np.ndarray,
     c_miss: float = 1.0,
-    c_fa: float = 1.0,
-    p_target: float = 0.05,
+    c_fa: float = 10.0,
+    p_target: float = 0.95,
 ) -> float:
     """Compute minimum Detection Cost Function.
 
     DCF = c_miss * p_target * p_miss + c_fa * (1 - p_target) * p_fa
+
+    Default parameters follow ASVspoof 5 Track 1 conventions:
+    C_miss=1, C_fa=10, pi_spf=0.05 (i.e., p_target=P(bonafide)=0.95).
+    This gives beta = C_miss/C_fa * (1-pi_spf)/pi_spf = 1.9.
 
     Args:
         scores: Detection scores (higher = more likely bonafide).
         labels: Binary labels (0 = bonafide, 1 = spoof).
         c_miss: Cost of miss (false rejection of bonafide).
         c_fa: Cost of false alarm (false acceptance of spoof).
-        p_target: Prior probability of target (bonafide).
+        p_target: Prior probability of target (bonafide). Default 0.95
+            per ASVspoof 5 Track 1 (pi_spf=0.05).
 
     Returns:
-        Minimum DCF value.
+        Minimum normalised DCF value.
     """
     n_bonafide = np.sum(labels == 0)
     n_spoof = np.sum(labels == 1)
@@ -156,10 +161,13 @@ def compute_act_dcf(
     labels: np.ndarray,
     threshold: float,
     c_miss: float = 1.0,
-    c_fa: float = 1.0,
-    p_target: float = 0.05,
+    c_fa: float = 10.0,
+    p_target: float = 0.95,
 ) -> float:
     """Compute actual DCF at a fixed threshold.
+
+    Default parameters follow ASVspoof 5 Track 1 conventions
+    (C_miss=1, C_fa=10, pi_spf=0.05).
 
     Args:
         scores: Detection scores (higher = more likely bonafide).
@@ -167,7 +175,7 @@ def compute_act_dcf(
         threshold: Decision threshold (score >= threshold -> accept as bonafide).
         c_miss: Cost of miss (false rejection of bonafide).
         c_fa: Cost of false alarm (false acceptance of spoof).
-        p_target: Prior probability of target (bonafide).
+        p_target: Prior probability of target (bonafide). Default 0.95.
 
     Returns:
         Actual DCF value.

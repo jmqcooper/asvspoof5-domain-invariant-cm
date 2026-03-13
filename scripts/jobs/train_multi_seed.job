@@ -83,7 +83,8 @@ echo ""
 
 # ── Evaluate ─────────────────────────────────────────────────────────────────
 # Checkpoint path follows the convention set by train.py
-CHECKPOINT="/projects/prjs1904/runs/${RUN_NAME}/checkpoints/best.pt"
+RUNS_BASE="${RUNS_DIR:-./runs}"
+CHECKPOINT="${RUNS_BASE}/${RUN_NAME}/checkpoints/best.pt"
 
 for SPLIT in dev eval; do
   OUTPUT_DIR="results/predictions/${RUN_NAME}_${SPLIT}"

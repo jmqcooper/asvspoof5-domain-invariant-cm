@@ -2,7 +2,7 @@
 
 Run each model configuration with 3 seeds to measure variance and establish statistical significance.
 
-**Seed 42 is already complete** for all 4 configs. This job runs seeds 123 and 456 only (8 new GPU jobs total).
+**Seed 42 is already complete** for all configs. This job runs seeds 123 and 456 only.
 
 ## Configurations
 
@@ -10,18 +10,30 @@ Run each model configuration with 3 seeds to measure variance and establish stat
 |--------|---------|-----------------|
 | `wavlm_erm` | ✅ Done | 2 new runs |
 | `wavlm_dann` | ✅ Done | 2 new runs |
+| `wavlm_erm_aug` | ✅ Done | 2 new runs |
 | `w2v2_erm` | ✅ Done | 2 new runs |
 | `w2v2_dann` | ✅ Done | 2 new runs |
+| `w2v2_erm_aug` | ✅ Done | 2 new runs |
+
+## Prerequisites
+
+### Pre-compute augmentation cache (speeds up training ~5x)
+
+```bash
+JOB_ID=$(sbatch --parsable scripts/jobs/precompute_augmentations.job)
+sbatch --dependency=afterok:$JOB_ID scripts/jobs/merge_augmentation_manifests.job
+```
+
+Wait for both jobs to complete before submitting training.
 
 ## Running Experiments
 
-Submit all 4 configs (each launches 2 array jobs = 8 total new runs):
+Submit all 6 configs (each launches 2 array jobs = 12 total new runs):
 
 ```bash
-sbatch scripts/jobs/train_multi_seed.job wavlm_erm
-sbatch scripts/jobs/train_multi_seed.job wavlm_dann
-sbatch scripts/jobs/train_multi_seed.job w2v2_erm
-sbatch scripts/jobs/train_multi_seed.job w2v2_dann
+for cfg in wavlm_erm wavlm_dann wavlm_erm_aug w2v2_erm w2v2_dann w2v2_erm_aug; do
+  sbatch scripts/jobs/train_multi_seed.job $cfg
+done
 ```
 
 Monitor progress:
@@ -36,41 +48,44 @@ Each array job trains with one seed, then evaluates on both `dev` and `eval` spl
 
 ```
 results/predictions/
+├── wavlm_erm_seed123_dev/
+│   ├── predictions.tsv
+│   └── metrics.json
 ├── wavlm_erm_seed123_eval/
 │   ├── predictions.tsv
-│   ├── metrics.json
-│   └── scores.txt
-├── wavlm_erm_seed123_dev/
+│   └── metrics.json
+├── wavlm_erm_seed456_dev/
 │   └── ...
 ├── wavlm_erm_seed456_eval/
 │   └── ...
 └── ...
 ```
 
-Predictions TSV has columns: `flac_file, score, prediction, y_task, codec`.
+Predictions TSV has columns: `flac_file, score, prediction, y_task, y_codec, y_codec_q, ...`
 
-**Note:** Seed 42 results are already in `/projects/prjs1904/runs/{config}/` — copy or symlink those prediction files into `results/predictions/{config}_seed42_{split}/` to have everything in one place.
+**Note:** Seed 42 results are in `$RUNS_DIR/{config}/eval_eval_full/` — the DET curve script searches both `results/predictions/` and `results/runs/` automatically.
 
-## Generating Figures
+## Generating Figures (after all training completes)
 
 ### DET Curves
 
 ```bash
-# With real predictions (after experiments complete)
+# From existing single-seed results
+python scripts/plot_det_curves.py --predictions-dir results/runs/
+
+# Or from multi-seed predictions directory
 python scripts/plot_det_curves.py --predictions-dir results/predictions/
 
 # Demo mode (synthetic curves for layout testing)
 python scripts/plot_det_curves.py --demo
 ```
 
-Output: `master-thesis-uva/figures/det_curves.{png,pdf}`
+Output: `figures/det_curves.{png,pdf}`
 
 ### PCA of Representations
 
-First extract representations (see `scripts/extract_representations.py`), then:
-
 ```bash
-# With real data
+# With real data (after extracting representations via RQ4 notebook)
 python scripts/plot_pca.py \
     --erm-repr results/representations/erm_proj.npy \
     --dann-repr results/representations/dann_proj.npy \
@@ -80,17 +95,11 @@ python scripts/plot_pca.py \
 python scripts/plot_pca.py --demo
 ```
 
-Output: `master-thesis-uva/figures/pca_representations.{png,pdf}`
+Output: `figures/pca_representations.{png,pdf}`
 
-## Aggregating Results
+## Metrics
 
-To compute mean ± std EER across seeds for a config:
+Both EER and minDCF are computed with corrected ASVspoof 5 Track 1 parameters:
+- `C_miss=1, C_fa=10, π_spf=0.05` (β ≈ 1.90)
 
-```bash
-# Example: collect EER from all wavlm_erm seeds
-for f in results/predictions/wavlm_erm_seed*_eval.csv; do
-    echo "$f"
-done
-```
-
-Use the evaluation metrics logged to W&B for systematic comparison, or parse the prediction CSVs with the DET curve script.
+Results are logged to W&B for systematic comparison.

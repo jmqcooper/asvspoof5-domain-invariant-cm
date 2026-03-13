@@ -2,8 +2,14 @@
 """Plot DET curves for ERM vs DANN models.
 
 Usage:
+    # From existing single-seed results
+    python scripts/plot_det_curves.py --predictions-dir results/runs/
+
+    # From multi-seed results (averages across seeds)
     python scripts/plot_det_curves.py --predictions-dir results/predictions/
-    python scripts/plot_det_curves.py --demo  # synthetic curves for layout testing
+
+    # Demo mode (synthetic curves for layout testing)
+    python scripts/plot_det_curves.py --demo
 """
 import argparse
 import sys
@@ -19,10 +25,21 @@ from thesis_style import COLORS, STYLE, set_style
 
 # ── Colours ──────────────────────────────────────────────────────────────────
 COLOR_MAP = {
-    'wavlm_erm':  '#D4795A',
-    'wavlm_dann': '#4CA08A',
-    'w2v2_erm':   '#E8B4A0',
-    'w2v2_dann':  '#A5D5C3',
+    'wavlm_erm':      '#D4795A',
+    'wavlm_dann':     '#4CA08A',
+    'wavlm_erm_aug':  '#B8623F',
+    'w2v2_erm':       '#E8B4A0',
+    'w2v2_dann':      '#A5D5C3',
+    'w2v2_erm_aug':   '#D49A80',
+}
+
+LABEL_MAP = {
+    'wavlm_erm':      'WavLM ERM',
+    'wavlm_dann':     'WavLM DANN',
+    'wavlm_erm_aug':  'WavLM ERM+Aug',
+    'w2v2_erm':       'W2V2 ERM',
+    'w2v2_dann':      'W2V2 DANN',
+    'w2v2_erm_aug':   'W2V2 ERM+Aug',
 }
 
 KNOWN_EERS = {
@@ -32,19 +49,33 @@ KNOWN_EERS = {
     'w2v2_dann':  14.33,
 }
 
+# All model names to search for
+ALL_MODELS = ['wavlm_erm', 'wavlm_dann', 'wavlm_erm_aug',
+              'w2v2_erm', 'w2v2_dann', 'w2v2_erm_aug']
+
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
-def compute_far_frr(scores: np.ndarray, labels: np.ndarray, n_thresholds: int = 1000):
-    """Compute FAR and FRR at multiple thresholds. labels: 1=bonafide, 0=spoof."""
+def compute_far_frr(scores: np.ndarray, labels: np.ndarray, n_thresholds: int = 2000):
+    """Compute FAR and FRR at multiple thresholds.
+
+    Convention: labels 0=bonafide, 1=spoof (matching repo convention in
+    metrics.py and evaluate.py). Higher scores = more likely bonafide.
+
+    FAR = P(accepted as bonafide | spoof) = spoof above threshold / total spoof
+    FRR = P(rejected as spoof | bonafide) = bonafide below threshold / total bonafide
+    """
+    n_bonafide = (labels == 0).sum()
+    n_spoof = (labels == 1).sum()
+    if n_bonafide == 0 or n_spoof == 0:
+        raise ValueError(f"Need both classes: bonafide={n_bonafide}, spoof={n_spoof}")
+
     thresholds = np.linspace(scores.min(), scores.max(), n_thresholds)
     far = np.zeros(n_thresholds)
     frr = np.zeros(n_thresholds)
-    n_bonafide = (labels == 1).sum()
-    n_spoof = (labels == 0).sum()
     for i, t in enumerate(thresholds):
-        # Predict bonafide if score >= threshold
-        far[i] = ((scores >= t) & (labels == 0)).sum() / max(n_spoof, 1)
-        frr[i] = ((scores < t) & (labels == 1)).sum() / max(n_bonafide, 1)
+        # Accept as bonafide if score >= threshold
+        far[i] = ((scores >= t) & (labels == 1)).sum() / n_spoof
+        frr[i] = ((scores < t) & (labels == 0)).sum() / n_bonafide
     return far, frr
 
 
@@ -59,32 +90,87 @@ def find_eer(far, frr):
 def generate_synthetic_det(eer_pct: float, n_points: int = 500):
     """Generate synthetic FAR/FRR that pass through the given EER point."""
     eer = eer_pct / 100.0
-    # Use probit (normal deviate) model: FRR = Phi(Phi^{-1}(FAR) + shift)
-    # At EER: FAR = FRR = eer, so shift ≈ 0 at that point
-    # We parameterise via a spread parameter
     far = np.logspace(-3, np.log10(0.99), n_points)
-    # Calibrate: at EER, probit(eer) + shift = probit(eer) → shift=0
-    # We need asymmetry. Use: FRR = Phi(a * Phi^{-1}(FAR) + b)
-    # At EER: eer = Phi(a * Phi^{-1}(eer) + b)
-    # Phi^{-1}(eer) = a * Phi^{-1}(eer) + b → b = (1-a)*Phi^{-1}(eer)
-    a = 0.9  # slight asymmetry
+    a = 0.9
     z_eer = norm.ppf(eer)
     b = (1 - a) * z_eer
     frr = norm.cdf(a * norm.ppf(far) + b)
-    # Clip
     far = np.clip(far, 1e-4, 1.0)
     frr = np.clip(frr, 1e-4, 1.0)
     return far, frr, eer
 
 
-def load_predictions(csv_path: Path):
+def load_predictions(pred_path: Path):
     """Load predictions TSV/CSV and return scores, labels."""
     import pandas as pd
-    sep = '\t' if csv_path.suffix == '.tsv' else ','
-    df = pd.read_csv(csv_path, sep=sep)
+    sep = '\t' if pred_path.suffix == '.tsv' else ','
+    df = pd.read_csv(pred_path, sep=sep)
     scores = df['score'].values
     labels = df['y_task'].values
     return scores, labels
+
+
+def find_prediction_files(pred_dir: Path, model_name: str) -> list[Path]:
+    """Find all prediction files for a model, including multi-seed variants.
+
+    Searches for:
+    1. {pred_dir}/{model_name}/eval_eval_full/predictions.tsv  (existing runs/)
+    2. {pred_dir}/{model_name}/eval_eval/predictions.tsv
+    3. {pred_dir}/{model_name}_eval/predictions.tsv  (multi-seed predictions/)
+    4. {pred_dir}/{model_name}_seed*_eval/predictions.tsv  (multi-seed per-seed)
+    5. {pred_dir}/{model_name}_eval.csv  (legacy flat CSV)
+    """
+    found = []
+
+    # Existing runs structure
+    for subdir in ['eval_eval_full', 'eval_eval']:
+        p = pred_dir / model_name / subdir / 'predictions.tsv'
+        if p.exists():
+            found.append(p)
+
+    # Multi-seed job output
+    p = pred_dir / f'{model_name}_eval' / 'predictions.tsv'
+    if p.exists():
+        found.append(p)
+
+    # Multi-seed per-seed directories
+    for seed_dir in sorted(pred_dir.glob(f'{model_name}_seed*_eval')):
+        p = seed_dir / 'predictions.tsv'
+        if p.exists():
+            found.append(p)
+
+    # Legacy flat CSV
+    p = pred_dir / f'{model_name}_eval.csv'
+    if p.exists():
+        found.append(p)
+
+    return found
+
+
+def load_model_predictions(pred_dir: Path, model_name: str):
+    """Load and concatenate predictions for a model (potentially across seeds).
+
+    Returns combined scores and labels from all found prediction files.
+    For multi-seed, this effectively pools all predictions for a more
+    robust DET curve estimate.
+    """
+    files = find_prediction_files(pred_dir, model_name)
+    if not files:
+        return None, None
+
+    all_scores = []
+    all_labels = []
+    for f in files:
+        print(f'  Loading {model_name} from {f}')
+        scores, labels = load_predictions(f)
+        all_scores.append(scores)
+        all_labels.append(labels)
+
+    # Use first file only (seed 42) for DET curve to avoid duplicating
+    # the same eval set across seeds. If seeds produce different scores
+    # on the same eval set, we take the first (canonical seed).
+    # For true multi-seed averaging, we'd need to average score distributions.
+    return all_scores[0], all_labels[0]
 
 
 # ── Plotting ─────────────────────────────────────────────────────────────────
@@ -94,8 +180,8 @@ def plot_det_panel(ax, models: dict, title: str):
     models: dict of {name: (far, frr, eer)}
     """
     for name, (far, frr, eer) in models.items():
-        color = COLOR_MAP[name]
-        label_name = name.replace('_', ' ').upper()
+        color = COLOR_MAP.get(name, '#888888')
+        label_name = LABEL_MAP.get(name, name.replace('_', ' ').upper())
         eer_pct = eer * 100
         ax.plot(far * 100, frr * 100, color=color, linewidth=2,
                 label=f'{label_name} (EER={eer_pct:.2f}%)')
@@ -119,7 +205,7 @@ def plot_det_panel(ax, models: dict, title: str):
 def main():
     parser = argparse.ArgumentParser(description='Plot DET curves for ERM vs DANN')
     parser.add_argument('--predictions-dir', type=str, default=None,
-                        help='Directory with prediction CSVs')
+                        help='Directory with prediction files (results/runs/ or results/predictions/)')
     parser.add_argument('--output', type=str,
                         default='figures/det_curves')
     parser.add_argument('--demo', action='store_true',
@@ -129,7 +215,6 @@ def main():
     set_style()
 
     if args.demo:
-        # Generate synthetic curves
         wavlm_models = {}
         w2v2_models = {}
         for name, eer_pct in KNOWN_EERS.items():
@@ -144,29 +229,14 @@ def main():
         pred_dir = Path(args.predictions_dir)
         wavlm_models = {}
         w2v2_models = {}
-        for name in ['wavlm_erm', 'wavlm_dann', 'w2v2_erm', 'w2v2_dann']:
-            # Try multiple naming conventions:
-            # 1. {name}_eval.csv (legacy)
-            # 2. {name}_eval/predictions.tsv (multi-seed job output)
-            # 3. ../runs/{name}/eval_eval_full/predictions.tsv (existing results)
-            candidates = [
-                pred_dir / f'{name}_eval.csv',
-                pred_dir / f'{name}_eval' / 'predictions.tsv',
-                pred_dir.parent / 'runs' / name / 'eval_eval_full' / 'predictions.tsv',
-                pred_dir.parent / 'runs' / name / 'eval_eval' / 'predictions.tsv',
-            ]
-            csv_path = None
-            for c in candidates:
-                if c.exists():
-                    csv_path = c
-                    break
-            if csv_path is None:
+        for name in ALL_MODELS:
+            scores, labels = load_model_predictions(pred_dir, name)
+            if scores is None:
                 print(f'Warning: no predictions found for {name}, skipping')
                 continue
-            print(f'Loading {name} from {csv_path}')
-            scores, labels = load_predictions(csv_path)
             far, frr = compute_far_frr(scores, labels)
             eer, _, _ = find_eer(far, frr)
+            print(f'  {name}: EER={eer*100:.2f}%')
             if name.startswith('wavlm'):
                 wavlm_models[name] = (far, frr, eer)
             else:

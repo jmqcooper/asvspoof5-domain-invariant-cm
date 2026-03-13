@@ -139,15 +139,16 @@ def main():
 
     # ── Figure layout ────────────────────────────────────────────────────────
     n_rows = len(rows)
-    row_h = 0.62
-    fig_h = row_h * n_rows + 1.0
-    fig = plt.figure(figsize=(7.5, fig_h))
+    row_h = 0.72
+    fig_h = row_h * n_rows + 1.2
+    fig = plt.figure(figsize=(10, fig_h))
 
     gs = gridspec.GridSpec(
         n_rows + 1, 3, figure=fig,
         width_ratios=[1, 1.4, 0.9],
-        height_ratios=[1] * n_rows + [0.03],
-        hspace=0.15, wspace=0.22,
+        height_ratios=[1] * n_rows + [0.05],
+        hspace=0.30, wspace=0.25,
+        top=0.97, bottom=0.03,
     )
 
     vmin_spec, vmax_spec = -80, 0
@@ -187,11 +188,11 @@ def main():
                 linestyle='-' if not is_spoof else '-')
         ax.set_ylim(-1, 1)
         ax.set_xlim(0, args.max_seconds)
-        ax.set_ylabel(row_label, fontsize=5.5,
+        ax.set_ylabel(row_label, fontsize=6,
                       fontweight='bold' if not is_spoof else 'normal',
-                      rotation=0, labelpad=80, ha='left', va='center',
+                      rotation=0, labelpad=95, ha='left', va='center',
                       fontstyle='normal' if not is_spoof else 'italic')
-        ax.yaxis.set_label_coords(-0.55, 0.5)
+        ax.yaxis.set_label_coords(-0.50, 0.5)
         if row_idx == 0:
             ax.set_title('Waveform', fontsize=8, fontweight='bold', pad=4)
         if row_idx < n_rows - 1:
@@ -281,7 +282,7 @@ def main():
 
     fig.suptitle(
         f'Codec Artifacts — ASVspoof 5 Eval, Speaker {args.speaker}',
-        fontsize=9, fontweight='bold', y=1.003,
+        fontsize=9, fontweight='bold', y=0.99,
     )
 
     # ── Save ─────────────────────────────────────────────────────────────────

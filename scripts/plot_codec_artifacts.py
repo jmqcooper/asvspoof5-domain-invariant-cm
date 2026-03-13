@@ -93,6 +93,8 @@ def main():
     parser.add_argument('--predictions', type=str, required=True)
     parser.add_argument('--speaker', type=str, default='E_0002')
     parser.add_argument('--output', type=str, default='figures/codec_artifacts')
+    parser.add_argument('--label', type=str, default='bonafide', choices=['bonafide', 'spoof'],
+                        help='Filter by bonafide (y_task=0) or spoof (y_task=1)')
     parser.add_argument('--max-seconds', type=float, default=3.0)
     args = parser.parse_args()
 
@@ -108,7 +110,8 @@ def main():
 
     import pandas as pd
     df = pd.read_csv(args.predictions, sep='\t')
-    bon = df[(df['y_task'] == 0) & (df['speaker_id'] == args.speaker)]
+    y_val = 0 if args.label == 'bonafide' else 1
+    bon = df[(df['y_task'] == y_val) & (df['speaker_id'] == args.speaker)]
 
     utterances = {}
     for codec in CODEC_ORDER:
@@ -250,7 +253,7 @@ def main():
         ax_empty.axis('off')
 
     fig.suptitle(
-        f'Codec Artifacts — ASVspoof 5 Eval, Speaker {args.speaker} (Bonafide)',
+        f'Codec Artifacts — ASVspoof 5 Eval, Speaker {args.speaker} ({args.label.title()})',
         fontsize=14, fontweight='bold', y=1.005,
     )
 

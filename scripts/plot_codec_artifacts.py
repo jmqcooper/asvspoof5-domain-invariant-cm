@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Visualize codec artifacts: waveform, spectrogram, spectral envelope, and residual.
+"""Visualize codec artifacts: waveform, spectrogram, and spectral envelope.
 
-Creates a 12-row × 4-column grid showing how each ASVspoof 5 codec condition
-affects the same speaker's bonafide audio.
+Creates a 12-row × 3-column grid showing how each ASVspoof 5 codec condition
+affects the same speaker's bonafide audio. Rows are grouped by codec category.
 
 Usage:
     python scripts/plot_codec_artifacts.py \
@@ -19,7 +19,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.colors import Normalize
-import matplotlib.colorbar as mcolorbar
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from thesis_style import COLORS, STYLE, set_style
@@ -27,13 +26,13 @@ from thesis_style import COLORS, STYLE, set_style
 
 # ── Codec metadata ───────────────────────────────────────────────────────────
 CODEC_LABELS = {
-    'NONE': 'No Codec',
-    'C01':  'C01 · Opus 8 kHz',
-    'C02':  'C02 · AMR-WB 8 kHz',
-    'C03':  'C03 · Speex 8 kHz',
+    'NONE': 'No Codec (Original)',
+    'C01':  'C01 · Opus WB',
+    'C02':  'C02 · AMR-WB',
+    'C03':  'C03 · Speex WB',
     'C04':  'C04 · Encodec',
-    'C05':  'C05 · MP3 16 kHz',
-    'C06':  'C06 · AAC 16 kHz',
+    'C05':  'C05 · MP3 WB',
+    'C06':  'C06 · AAC WB',
     'C07':  'C07 · MP3 + Encodec',
     'C08':  'C08 · Opus NB',
     'C09':  'C09 · AMR-NB',
@@ -44,7 +43,10 @@ CODEC_LABELS = {
 CODEC_ORDER = ['NONE', 'C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07',
                'C08', 'C09', 'C10', 'C11']
 
-# Colour per codec for spectral envelope overlay
+# Group boundaries (draw separator BEFORE these indices)
+# Groups: Original | Wideband (C01-C07) | Narrowband (C08-C10) | Device (C11)
+GROUP_STARTS = {1: 'Wideband Codecs', 8: 'Narrowband Codecs', 11: 'Device'}
+
 CODEC_COLORS = {
     'NONE': '#333333',
     'C01':  '#D4795A', 'C02': '#E8946E', 'C03': '#F0A882',
@@ -81,7 +83,6 @@ def compute_spectrogram(audio, sr, n_fft=1024, hop_length=256):
 
 
 def compute_spectral_envelope(spec_db):
-    """Mean power per frequency bin across all frames → spectral envelope."""
     return np.mean(spec_db, axis=1)
 
 
@@ -118,7 +119,6 @@ def main():
         utterances[codec] = subset.iloc[0]['flac_file']
 
     print(f'Speaker {args.speaker}: {len(utterances)}/{len(CODEC_ORDER)} codecs')
-
     if 'NONE' not in utterances:
         print('Error: no NONE reference'); sys.exit(1)
 
@@ -131,22 +131,20 @@ def main():
     freq_bins = np.linspace(0, sr / 2, ref_spec.shape[0])
     print(f'Reference: {ref_path.name} ({len(ref_audio)/sr:.2f}s, {sr}Hz)')
 
-    # ── Figure layout ────────────────────────────────────────────────────────
+    # ── Figure layout: 12 rows × 3 cols + colorbar row ──────────────────────
     n_codecs = len(utterances)
     row_h = 1.8
-    fig_h = row_h * n_codecs + 1.5   # extra for suptitle + colorbar
-    fig = plt.figure(figsize=(18, fig_h))
+    fig_h = row_h * n_codecs + 1.2
+    fig = plt.figure(figsize=(15, fig_h))
 
-    # 4 columns: waveform | spectrogram | spectral envelope | residual
     gs = gridspec.GridSpec(
-        n_codecs + 1, 4, figure=fig,
-        width_ratios=[1, 1.3, 0.8, 1.3],
+        n_codecs + 1, 3, figure=fig,
+        width_ratios=[1, 1.4, 0.9],
         height_ratios=[1] * n_codecs + [0.06],
-        hspace=0.40, wspace=0.30,
+        hspace=0.40, wspace=0.28,
     )
 
     vmin_spec, vmax_spec = -80, 0
-    vmin_res, vmax_res = -30, 30
 
     for row_idx, codec in enumerate(CODEC_ORDER):
         if codec not in utterances:
@@ -171,8 +169,8 @@ def main():
         ax.set_ylim(-1, 1)
         ax.set_xlim(0, args.max_seconds)
         ax.set_ylabel(label, fontsize=9, fontweight='bold',
-                      rotation=0, labelpad=115, ha='left', va='center')
-        ax.yaxis.set_label_coords(-0.55, 0.5)
+                      rotation=0, labelpad=120, ha='left', va='center')
+        ax.yaxis.set_label_coords(-0.58, 0.5)
         if row_idx == 0:
             ax.set_title('Waveform', fontsize=12, fontweight='bold', pad=8)
         if row_idx < n_codecs - 1:
@@ -202,69 +200,49 @@ def main():
 
         # ── Col 2: Spectral envelope ─────────────────────────────────────
         ax = fig.add_subplot(gs[row_idx, 2])
-        # Plot reference (NONE) as thin grey, current codec as coloured
-        ax.plot(ref_envelope, freq_bins / 1000, color='#CCCCCC',
-                linewidth=1.2, alpha=0.7, label='No Codec' if row_idx == 0 else None)
-        ax.plot(envelope, freq_bins / 1000, color=color,
-                linewidth=1.8, alpha=0.9)
+        ax.plot(ref_envelope, freq_bins / 1000, color='#BBBBBB',
+                linewidth=1.0, alpha=0.6, linestyle='--')
+        ax.plot(envelope, freq_bins / 1000, color=color, linewidth=1.8, alpha=0.9)
         ax.set_ylim(0, 8)
-        ax.set_xlim(-80, 0)
+        ax.set_xlim(0, -80)  # Flipped: high power (0) on left, low (-80) on right
         if row_idx == 0:
             ax.set_title('Spectral Envelope', fontsize=12, fontweight='bold', pad=8)
-            ax.legend(loc='upper right', fontsize=7, framealpha=0.7)
+            # Legend
+            ax.plot([], [], color='#BBBBBB', linewidth=1.0, linestyle='--',
+                    label='Original (ref)')
+            ax.plot([], [], color=color, linewidth=1.8, label='Codec')
+            ax.legend(loc='lower left', fontsize=7, framealpha=0.8)
         if row_idx < n_codecs - 1:
             ax.set_xticklabels([])
         else:
             ax.set_xlabel('Power (dB)', fontsize=10)
         ax.set_ylabel('kHz', fontsize=9)
         ax.tick_params(labelsize=8)
-        ax.axhline(y=4, color=STYLE['GRID'], linewidth=0.5, linestyle='--', alpha=0.5)
+        ax.axhline(y=4, color=STYLE['GRID'], linewidth=0.6, linestyle=':', alpha=0.6)
 
-        # ── Col 3: Spectral residual ─────────────────────────────────────
-        ax = fig.add_subplot(gs[row_idx, 3])
-        if codec == 'NONE':
-            ax.set_facecolor(STYLE['PLOT_BG'])
-            ax.text(0.5, 0.5, '(reference)', transform=ax.transAxes,
-                    ha='center', va='center', fontsize=10, color='#9CA3AF',
-                    fontstyle='italic')
-            ax.set_ylim(0, 8)
-            ax.set_xlim(0, args.max_seconds)
-        else:
-            min_frames = min(spec.shape[1], ref_spec.shape[1])
-            residual = spec[:, :min_frames] - ref_spec[:, :min_frames]
-            time_res = np.linspace(0, min(len(audio), len(ref_audio)) / sr, min_frames)
-            im_res = ax.pcolormesh(
-                time_res, freq_bins / 1000, residual,
-                cmap='RdBu_r', vmin=vmin_res, vmax=vmax_res,
-                shading='gouraud', rasterized=True,
-            )
-            ax.set_ylim(0, 8)
+    # ── Group separators ─────────────────────────────────────────────────────
+    # Draw horizontal lines between codec groups across all columns
+    for group_row, group_label in GROUP_STARTS.items():
+        # Convert row index to figure coordinates
+        # Use the top of the row's axes as the separator position
+        if group_row < n_codecs:
+            ax_ref = fig.axes[group_row * 3]  # first column of the group row
+            bbox = ax_ref.get_position()
+            y_pos = bbox.y1 + 0.008
+            fig.add_artist(plt.Line2D(
+                [0.08, 0.95], [y_pos, y_pos],
+                transform=fig.transFigure,
+                color=STYLE['GRID'], linewidth=1.2, linestyle='-', alpha=0.8,
+            ))
 
-        if row_idx == 0:
-            ax.set_title('Spectral Residual', fontsize=12, fontweight='bold', pad=8)
-        if row_idx < n_codecs - 1:
-            ax.set_xticklabels([])
-        else:
-            ax.set_xlabel('Time (s)', fontsize=10)
-        ax.set_ylabel('kHz', fontsize=9)
-        ax.tick_params(labelsize=8)
-
-    # ── Colorbars (bottom row) ───────────────────────────────────────────────
-    ax_cb_spec = fig.add_subplot(gs[n_codecs, 1])
-    cb1 = fig.colorbar(
+    # ── Colorbar ─────────────────────────────────────────────────────────────
+    ax_cb = fig.add_subplot(gs[n_codecs, 1])
+    cb = fig.colorbar(
         plt.cm.ScalarMappable(norm=Normalize(vmin_spec, vmax_spec), cmap='magma'),
-        cax=ax_cb_spec, orientation='horizontal',
+        cax=ax_cb, orientation='horizontal',
     )
-    cb1.set_label('Power (dB)', fontsize=9)
-    cb1.ax.tick_params(labelsize=8)
-
-    ax_cb_res = fig.add_subplot(gs[n_codecs, 3])
-    cb2 = fig.colorbar(
-        plt.cm.ScalarMappable(norm=Normalize(vmin_res, vmax_res), cmap='RdBu_r'),
-        cax=ax_cb_res, orientation='horizontal',
-    )
-    cb2.set_label('Δ Power (dB)', fontsize=9)
-    cb2.ax.tick_params(labelsize=8)
+    cb.set_label('Power (dB)', fontsize=9)
+    cb.ax.tick_params(labelsize=8)
 
     # Hide unused bottom cells
     for col in [0, 2]:
@@ -272,7 +250,7 @@ def main():
         ax_empty.axis('off')
 
     fig.suptitle(
-        f'Codec Artifacts Across ASVspoof 5 Conditions — Speaker {args.speaker} (Bonafide)',
+        f'Codec Artifacts — ASVspoof 5 Eval, Speaker {args.speaker} (Bonafide)',
         fontsize=14, fontweight='bold', y=1.005,
     )
 

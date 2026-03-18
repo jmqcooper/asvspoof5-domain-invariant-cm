@@ -6,9 +6,6 @@ Domain-adversarial training (DANN) for codec-robust speech deepfake detection.
 
 ## Results
 
-| Model | Backbone | Eval EER | OOD Gap | minDCF |
-|-------|----------|----------|---------|--------|
-
 
 ## Setup
 
@@ -72,16 +69,16 @@ cp .env.example .env
 Example `.env` for Snellius:
 ```bash
 # Dataset location
-ASVSPOOF5_ROOT=/projects/prjs1904/data/asvspoof5
+ASVSPOOF5_ROOT=...
 
 # Pre-computed augmentations cache (speeds up DANN training ~5x)
-AUGMENTATION_CACHE_DIR=/scratch-shared/jcooper/asvspoof5_augmented_cache
+AUGMENTATION_CACHE_DIR=...
 
 # Checkpoints and results (use persistent storage, not scratch)
-RUNS_DIR=/projects/prjs1904/runs
+RUNS_DIR=...
 
 # HuggingFace model cache
-HF_HOME=/scratch-shared/jcooper/.cache/huggingface
+HF_HOME=...
 
 # Wandb (optional)
 WANDB_API_KEY=your_key

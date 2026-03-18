@@ -986,22 +986,27 @@ def main():
         results = {"success": 0, "skipped": 0, "failed": 0}
         errors = []
 
+        # When using SLURM array sharding (--shard-index), offset tar shard
+        # names so each array task writes a unique file.
+        shard_name_offset = args.shard_index if args.shard_index is not None else 0
+
         for si, group in enumerate(shard_groups):
-            tar_path = args.output_dir / f"shard_{si:06d}.tar"
+            shard_id = shard_name_offset + si
+            tar_path = args.output_dir / f"shard_{shard_id:06d}.tar"
             if tar_path.exists():
                 # Resume: skip completed shards, load their entries from manifest
-                shard_manifest_path = args.output_dir / f"manifest_shard_{si:06d}.json"
+                shard_manifest_path = args.output_dir / f"manifest_shard_{shard_id:06d}.json"
                 if shard_manifest_path.exists():
                     with open(shard_manifest_path) as f:
                         sm = json.load(f)
                     all_entries.extend(sm.get("entries", []))
-                    logger.info(f"  Shard {si}: skipped (already exists)")
+                    logger.info(f"  Shard {shard_id}: skipped (already exists)")
                     results["skipped"] += len(group) * augs_per_file
                     continue
 
-            logger.info(f"  Shard {si}/{len(shard_groups)}: processing {len(group)} files...")
+            logger.info(f"  Shard {shard_id}/{len(shard_groups)}: processing {len(group)} files...")
             shard_result = process_tar_shard(
-                shard_index=si,
+                shard_index=shard_id,
                 audio_paths=group,
                 output_dir=args.output_dir,
                 codecs=supported_codecs,
@@ -1024,7 +1029,7 @@ def main():
                 output_format=args.output_format,
                 tar_entries=shard_result["entries"],
             )
-            shard_manifest_path = args.output_dir / f"manifest_shard_{si:06d}.json"
+            shard_manifest_path = args.output_dir / f"manifest_shard_{shard_id:06d}.json"
             with open(shard_manifest_path, "w") as f:
                 json.dump(shard_manifest, f, indent=2)
 

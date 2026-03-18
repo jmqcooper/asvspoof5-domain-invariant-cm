@@ -25,10 +25,13 @@ Usage:
 """
 
 import argparse
+import io
 import json
 import logging
 import os
 import sys
+import tarfile
+import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -135,6 +138,16 @@ def parse_args() -> argparse.Namespace:
         "--smoke-test",
         action="store_true",
         help="Run a quick smoke test with one file before full processing (recommended for first run)",
+    )
+    parser.add_argument(
+        "--tar-shards",
+        type=int,
+        default=None,
+        help=(
+            "Pack augmented files into tar-based shards instead of individual files. "
+            "Value is the number of audio files per shard. Use 0 for a single shard "
+            "containing everything. This drastically reduces inode usage on HPC systems."
+        ),
     )
     return parser.parse_args()
 
@@ -563,6 +576,7 @@ def build_manifest(
     codecs: list[str],
     qualities: list[int],
     output_format: str,
+    tar_entries: list[dict] | None = None,
 ) -> dict:
     """Build the augmentation manifest mapping originals to augmented files.
 
@@ -572,6 +586,8 @@ def build_manifest(
         codecs: List of codec names.
         qualities: List of quality levels.
         output_format: Output file format extension.
+        tar_entries: If provided, use these pre-built entries (from tar-shard mode)
+            instead of generating individual-file entries.
 
     Returns:
         Manifest dict with metadata and per-file mappings.
@@ -587,44 +603,153 @@ def build_manifest(
     for i, codec in enumerate(codecs, start=1):
         codec_vocab[codec] = i
 
-    entries = []
-    for audio_path in audio_paths:
-        stem = Path(audio_path).stem
-        augmented_files = []
-        for codec in codecs:
-            for quality in qualities:
-                aug_path = str(
-                    output_dir / codec / f"q{quality}" / f"{stem}.{output_format}"
-                )
-                augmented_files.append(
-                    {
-                        "path": aug_path,
-                        "codec": codec,
-                        "quality": quality,
-                        "codec_label": codec_vocab[codec],
-                        "codec_q_label": f"{codec}_Q{quality}",
-                    }
-                )
-        entries.append(
-            {
-                "original_file": audio_path,
-                "flac_stem": stem,
-                "augmented_files": augmented_files,
-            }
-        )
+    if tar_entries is not None:
+        # Tar-shard mode: entries already built by process_tar_shard,
+        # but we need to add codec_label/codec_q_label fields.
+        for entry in tar_entries:
+            for af in entry["augmented_files"]:
+                af["codec_label"] = codec_vocab[af["codec"]]
+                af["codec_q_label"] = f"{af['codec']}_Q{af['quality']}"
+        entries = tar_entries
+    else:
+        entries = []
+        for audio_path in audio_paths:
+            stem = Path(audio_path).stem
+            augmented_files = []
+            for codec in codecs:
+                for quality in qualities:
+                    aug_path = str(
+                        output_dir / codec / f"q{quality}" / f"{stem}.{output_format}"
+                    )
+                    augmented_files.append(
+                        {
+                            "path": aug_path,
+                            "codec": codec,
+                            "quality": quality,
+                            "codec_label": codec_vocab[codec],
+                            "codec_q_label": f"{codec}_Q{quality}",
+                        }
+                    )
+            entries.append(
+                {
+                    "original_file": audio_path,
+                    "flac_stem": stem,
+                    "augmented_files": augmented_files,
+                }
+            )
 
     manifest = {
-        "version": 1,
+        "version": 2 if tar_entries is not None else 1,
+        "format": "tar" if tar_entries is not None else "individual",
         "codecs": codecs,
         "qualities": qualities,
         "codec_vocab": codec_vocab,
-        "num_originals": len(audio_paths),
+        "num_originals": len(entries),
         "augmentations_per_file": len(codecs) * len(qualities),
-        "total_augmented_files": len(audio_paths) * len(codecs) * len(qualities),
+        "total_augmented_files": len(entries) * len(codecs) * len(qualities),
         "entries": entries,
     }
 
     return manifest
+
+
+def process_tar_shard(
+    shard_index: int,
+    audio_paths: list[str],
+    output_dir: Path,
+    codecs: list[str],
+    qualities: list[int],
+    sample_rate: int,
+    output_format: str,
+    num_workers: int,
+) -> dict:
+    """Process a group of audio files and pack all augmentations into a single tar.
+
+    Each shard tar contains internal paths like: MP3/q1/stem.flac, AAC/q3/stem.flac, etc.
+    This replaces individual file output, drastically reducing inode count.
+
+    Args:
+        shard_index: Index of this shard.
+        audio_paths: Audio files assigned to this shard.
+        output_dir: Base output directory (tar files go here).
+        codecs: Codec names.
+        qualities: Quality levels.
+        sample_rate: Target sample rate.
+        output_format: Output audio format (flac, wav).
+        num_workers: Number of parallel workers for ffmpeg.
+
+    Returns:
+        Dict with shard stats (success, failed counts) and manifest entries.
+    """
+    tar_path = output_dir / f"shard_{shard_index:06d}.tar"
+    temp_tar_path = tar_path.with_suffix(".tar.tmp")
+
+    # Build tasks for all files in this shard — use a temp dir for intermediate files
+    with tempfile.TemporaryDirectory(prefix=f"aug_shard_{shard_index}_") as tmp_dir:
+        tmp_dir = Path(tmp_dir)
+        tasks = build_task_list(
+            audio_paths=audio_paths,
+            output_dir=tmp_dir,
+            codecs=codecs,
+            qualities=qualities,
+            sample_rate=sample_rate,
+            output_format=output_format,
+        )
+
+        results = {"success": 0, "failed": 0, "skipped": 0}
+        errors = []
+
+        # Process augmentations in parallel
+        with ProcessPoolExecutor(max_workers=num_workers) as executor:
+            futures = {executor.submit(process_single_file, t): t for t in tasks}
+            for future in as_completed(futures):
+                try:
+                    result = future.result(timeout=120)
+                    results[result["status"]] += 1
+                    if result["status"] == "failed":
+                        errors.append(result)
+                except Exception as e:
+                    results["failed"] += 1
+                    errors.append({"error": str(e)})
+
+        # Pack everything into a tar file
+        manifest_entries = []
+        with tarfile.open(str(temp_tar_path), "w") as tar:
+            for audio_path in audio_paths:
+                stem = Path(audio_path).stem
+                aug_files = []
+                for codec in codecs:
+                    for quality in qualities:
+                        fname = f"{stem}.{output_format}"
+                        internal_path = f"{codec}/q{quality}/{fname}"
+                        fs_path = tmp_dir / codec / f"q{quality}" / fname
+
+                        if fs_path.exists() and fs_path.stat().st_size > 0:
+                            tar.add(str(fs_path), arcname=internal_path)
+                            aug_files.append({
+                                "tar_path": str(tar_path),
+                                "internal_path": internal_path,
+                                "codec": codec,
+                                "quality": quality,
+                            })
+
+                if aug_files:
+                    manifest_entries.append({
+                        "original_file": audio_path,
+                        "flac_stem": stem,
+                        "augmented_files": aug_files,
+                    })
+
+    # Atomic rename
+    os.replace(str(temp_tar_path), str(tar_path))
+
+    return {
+        "shard_index": shard_index,
+        "tar_path": str(tar_path),
+        "stats": results,
+        "errors": errors,
+        "entries": manifest_entries,
+    }
 
 
 def get_dir_size(path: Path) -> int:
@@ -843,87 +968,169 @@ def main():
     # Create output directory
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Process with multiprocessing
-    try:
-        from tqdm import tqdm
-    except ImportError:
-        logger.warning("tqdm not installed, using simple progress logging")
-        tqdm = None
+    # ── Tar-shard mode ──────────────────────────────────────────────────
+    if args.tar_shards is not None:
+        start_time = time.time()
+        files_per_shard = args.tar_shards if args.tar_shards > 0 else len(audio_paths)
+        # Split audio_paths into shard groups
+        shard_groups = [
+            audio_paths[i : i + files_per_shard]
+            for i in range(0, len(audio_paths), files_per_shard)
+        ]
+        logger.info(
+            f"Tar-shard mode: {len(shard_groups)} shards, "
+            f"~{files_per_shard} files/shard"
+        )
 
-    start_time = time.time()
-    results = {"success": 0, "skipped": 0, "failed": 0}
-    errors = []
+        all_entries = []
+        results = {"success": 0, "skipped": 0, "failed": 0}
+        errors = []
 
-    logger.info(f"Starting processing with {args.num_workers} workers...")
+        for si, group in enumerate(shard_groups):
+            tar_path = args.output_dir / f"shard_{si:06d}.tar"
+            if tar_path.exists():
+                # Resume: skip completed shards, load their entries from manifest
+                shard_manifest_path = args.output_dir / f"manifest_shard_{si:06d}.json"
+                if shard_manifest_path.exists():
+                    with open(shard_manifest_path) as f:
+                        sm = json.load(f)
+                    all_entries.extend(sm.get("entries", []))
+                    logger.info(f"  Shard {si}: skipped (already exists)")
+                    results["skipped"] += len(group) * augs_per_file
+                    continue
 
-    with ProcessPoolExecutor(max_workers=args.num_workers) as executor:
-        futures = {
-            executor.submit(process_single_file, task): task for task in tasks
-        }
-
-        if tqdm is not None:
-            progress = tqdm(
-                as_completed(futures),
-                total=total_tasks,
-                desc="Augmenting",
-                unit="file",
-                ncols=100,
+            logger.info(f"  Shard {si}/{len(shard_groups)}: processing {len(group)} files...")
+            shard_result = process_tar_shard(
+                shard_index=si,
+                audio_paths=group,
+                output_dir=args.output_dir,
+                codecs=supported_codecs,
+                qualities=args.qualities,
+                sample_rate=args.sample_rate,
+                output_format=args.output_format,
+                num_workers=args.num_workers,
             )
+            results["success"] += shard_result["stats"]["success"]
+            results["failed"] += shard_result["stats"]["failed"]
+            all_entries.extend(shard_result["entries"])
+            errors.extend(shard_result["errors"])
+
+            # Save per-shard manifest for resume support
+            shard_manifest = build_manifest(
+                audio_paths=group,
+                output_dir=args.output_dir,
+                codecs=supported_codecs,
+                qualities=args.qualities,
+                output_format=args.output_format,
+                tar_entries=shard_result["entries"],
+            )
+            shard_manifest_path = args.output_dir / f"manifest_shard_{si:06d}.json"
+            with open(shard_manifest_path, "w") as f:
+                json.dump(shard_manifest, f, indent=2)
+
+        elapsed = time.time() - start_time
+
+        # Build combined manifest
+        logger.info("Building combined tar-shard manifest...")
+        manifest = build_manifest(
+            audio_paths=audio_paths,
+            output_dir=args.output_dir,
+            codecs=supported_codecs,
+            qualities=args.qualities,
+            output_format=args.output_format,
+            tar_entries=all_entries,
+        )
+        if is_sharded:
+            manifest_path = args.output_dir / f"manifest_shard_{args.shard_index}.json"
         else:
-            progress = as_completed(futures)
+            manifest_path = args.output_dir / "manifest.json"
+        with open(manifest_path, "w") as f:
+            json.dump(manifest, f, indent=2)
+        logger.info(f"Manifest saved: {manifest_path}")
 
-        completed = 0
-        for future in progress:
-            try:
-                result = future.result(timeout=120)
-                results[result["status"]] += 1
-
-                if result["status"] == "failed":
-                    errors.append(result)
-                    if len(errors) <= 10:
-                        logger.warning(
-                            f"Failed: {Path(result['input_path']).name} "
-                            f"({result['codec']}/q{result['quality']}): "
-                            f"{result['error'][:100]}"
-                        )
-            except Exception as e:
-                results["failed"] += 1
-                errors.append({"error": str(e)})
-                logger.warning(f"Worker exception: {e}")
-
-            completed += 1
-
-            # Log progress every 5000 tasks if no tqdm
-            if tqdm is None and completed % 5000 == 0:
-                elapsed = time.time() - start_time
-                rate = completed / elapsed
-                eta = (total_tasks - completed) / rate if rate > 0 else 0
-                logger.info(
-                    f"Progress: {completed}/{total_tasks} "
-                    f"({100 * completed / total_tasks:.1f}%) "
-                    f"ETA: {eta / 60:.1f}min"
-                )
-
-    elapsed = time.time() - start_time
-
-    # Build and save manifest
-    # When sharded, write per-shard manifests to avoid race conditions.
-    # A separate merge step (--merge-manifests) combines them after all shards complete.
-    logger.info("Building augmentation manifest...")
-    manifest = build_manifest(
-        audio_paths=audio_paths,
-        output_dir=args.output_dir,
-        codecs=supported_codecs,
-        qualities=args.qualities,
-        output_format=args.output_format,
-    )
-    if is_sharded:
-        manifest_path = args.output_dir / f"manifest_shard_{args.shard_index}.json"
     else:
-        manifest_path = args.output_dir / "manifest.json"
-    with open(manifest_path, "w") as f:
-        json.dump(manifest, f, indent=2)
-    logger.info(f"Manifest saved: {manifest_path}")
+        # ── Individual-file mode (original behavior) ────────────────────
+        # Process with multiprocessing
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            logger.warning("tqdm not installed, using simple progress logging")
+            tqdm = None
+
+        start_time = time.time()
+        results = {"success": 0, "skipped": 0, "failed": 0}
+        errors = []
+
+        logger.info(f"Starting processing with {args.num_workers} workers...")
+
+        with ProcessPoolExecutor(max_workers=args.num_workers) as executor:
+            futures = {
+                executor.submit(process_single_file, task): task for task in tasks
+            }
+
+            if tqdm is not None:
+                progress = tqdm(
+                    as_completed(futures),
+                    total=total_tasks,
+                    desc="Augmenting",
+                    unit="file",
+                    ncols=100,
+                )
+            else:
+                progress = as_completed(futures)
+
+            completed = 0
+            for future in progress:
+                try:
+                    result = future.result(timeout=120)
+                    results[result["status"]] += 1
+
+                    if result["status"] == "failed":
+                        errors.append(result)
+                        if len(errors) <= 10:
+                            logger.warning(
+                                f"Failed: {Path(result['input_path']).name} "
+                                f"({result['codec']}/q{result['quality']}): "
+                                f"{result['error'][:100]}"
+                            )
+                except Exception as e:
+                    results["failed"] += 1
+                    errors.append({"error": str(e)})
+                    logger.warning(f"Worker exception: {e}")
+
+                completed += 1
+
+                # Log progress every 5000 tasks if no tqdm
+                if tqdm is None and completed % 5000 == 0:
+                    elapsed = time.time() - start_time
+                    rate = completed / elapsed
+                    eta = (total_tasks - completed) / rate if rate > 0 else 0
+                    logger.info(
+                        f"Progress: {completed}/{total_tasks} "
+                        f"({100 * completed / total_tasks:.1f}%) "
+                        f"ETA: {eta / 60:.1f}min"
+                    )
+
+        elapsed = time.time() - start_time
+
+        # Build and save manifest
+        # When sharded, write per-shard manifests to avoid race conditions.
+        # A separate merge step (--merge-manifests) combines them after all shards complete.
+        logger.info("Building augmentation manifest...")
+        manifest = build_manifest(
+            audio_paths=audio_paths,
+            output_dir=args.output_dir,
+            codecs=supported_codecs,
+            qualities=args.qualities,
+            output_format=args.output_format,
+        )
+        if is_sharded:
+            manifest_path = args.output_dir / f"manifest_shard_{args.shard_index}.json"
+        else:
+            manifest_path = args.output_dir / "manifest.json"
+        with open(manifest_path, "w") as f:
+            json.dump(manifest, f, indent=2)
+        logger.info(f"Manifest saved: {manifest_path}")
 
     # Measure actual disk usage
     actual_size = get_dir_size(args.output_dir)

@@ -4,9 +4,13 @@ Important: Protocol files are whitespace-separated despite .tsv extension.
 Label convention: bonafide=0, spoof=1.
 """
 
+import io
 import json
 import logging
+import os
 import random
+import tarfile
+import threading
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -196,10 +200,12 @@ class ASVspoof5Dataset(Dataset):
     def _load_aug_cache(self, cache_dir: Path) -> None:
         """Load pre-computed augmentation manifest for fast cache lookup.
 
-        When cache_dir contains a manifest.json (created by
-        scripts/precompute_augmentations.py), we build an index from
-        flac_stem → list of augmented file entries so __getitem__ can
-        randomly pick a pre-computed augmentation instead of running ffmpeg.
+        Supports two cache formats:
+        - **Individual files** (version 1 / format="individual"): each augmentation
+          is a separate file on disk. Direct file reads.
+        - **Tar shards** (version 2 / format="tar"): augmentations are packed into
+          tar files. Each DataLoader worker lazily opens its own TarFile handles
+          for thread-safety.
 
         The manifest includes a ``codec_vocab`` that was built at pre-compute
         time. We validate it against the augmentor's live vocab to catch
@@ -217,10 +223,7 @@ class ASVspoof5Dataset(Dataset):
         with open(manifest_path) as f:
             self._aug_cache_manifest = json.load(f)
 
-        # Validate that the manifest's codec vocab matches the augmentor's
-        # live vocab.  The pre-compute script (scripts/precompute_augmentations.py)
-        # saves its codec_vocab in the manifest; if codecs were added/removed
-        # since pre-computation, the label IDs would silently diverge.
+        # Validate codec vocab
         manifest_vocab = self._aug_cache_manifest.get("codec_vocab")
         if manifest_vocab is not None and self.augmentor is not None:
             live_vocab = self.augmentor.codec_vocab
@@ -234,17 +237,48 @@ class ASVspoof5Dataset(Dataset):
                     live_vocab,
                 )
 
+        # Detect format
+        self._aug_cache_format = self._aug_cache_manifest.get("format", "individual")
+
         # Build index: flac_stem → list of augmented file info
         self._aug_cache_index = {}
         for entry in self._aug_cache_manifest.get("entries", []):
             stem = entry["flac_stem"]
             self._aug_cache_index[stem] = entry["augmented_files"]
 
+        # For tar format: build tar member offset index for fast random access.
+        # We don't open tar files here — each DataLoader worker will lazily open
+        # its own handles (TarFile is not thread-safe).
+        self._tar_handles: dict[str, tarfile.TarFile] = {}  # per-thread lazy handles
+        self._tar_handle_lock = threading.Lock()
+
         logger.info(
-            "Loaded pre-computed augmentation cache: %d files, %d augmentations/file",
+            "Loaded pre-computed augmentation cache (%s format): %d files, %d augmentations/file",
+            self._aug_cache_format,
             len(self._aug_cache_index),
             self._aug_cache_manifest.get("augmentations_per_file", 0),
         )
+
+    def _get_tar_handle(self, tar_path: str) -> tarfile.TarFile:
+        """Get a TarFile handle for the current thread/worker.
+
+        Each thread (DataLoader worker) gets its own TarFile handle since
+        TarFile is not thread-safe. Handles are lazily opened on first access.
+
+        Args:
+            tar_path: Path to the tar file.
+
+        Returns:
+            Open TarFile handle for reading.
+        """
+        # Use (thread_id, tar_path) as key for per-thread handles
+        tid = threading.get_ident()
+        key = f"{tid}:{tar_path}"
+
+        if key not in self._tar_handles:
+            self._tar_handles[key] = tarfile.open(tar_path, "r")
+
+        return self._tar_handles[key]
 
     def __len__(self) -> int:
         return len(self.df)
@@ -253,6 +287,8 @@ class ASVspoof5Dataset(Dataset):
         self, audio_path: str, flac_file: str
     ) -> Optional[tuple["torch.Tensor", str, int]]:
         """Try to load a random pre-computed augmentation from cache.
+
+        Supports both individual-file and tar-shard cache formats.
 
         Args:
             audio_path: Original audio file path.
@@ -272,17 +308,40 @@ class ASVspoof5Dataset(Dataset):
 
         # Randomly pick one of the pre-computed augmentations
         choice = random.choice(aug_files)
-        aug_path = choice["path"]
-
-        if not Path(aug_path).exists():
-            logger.debug("Cache miss (file not found): %s", aug_path)
-            return None
 
         try:
-            waveform, sr = load_waveform(aug_path, target_sr=self.sample_rate)
-            return waveform, choice["codec"], choice["quality"]
+            if self._aug_cache_format == "tar" and "tar_path" in choice:
+                # Tar-shard mode: read from tar file
+                tar_path = choice["tar_path"]
+                internal_path = choice["internal_path"]
+                tf = self._get_tar_handle(tar_path)
+                member = tf.getmember(internal_path)
+                fileobj = tf.extractfile(member)
+                if fileobj is None:
+                    logger.debug("Cache miss (cannot extract): %s:%s", tar_path, internal_path)
+                    return None
+                audio_bytes = fileobj.read()
+                import soundfile as sf
+                data, sr = sf.read(io.BytesIO(audio_bytes), dtype="float32")
+                waveform = torch.from_numpy(data)
+                if waveform.ndim == 1:
+                    waveform = waveform.unsqueeze(0)
+                else:
+                    waveform = waveform.T
+                if sr != self.sample_rate:
+                    import torchaudio
+                    waveform = torchaudio.functional.resample(waveform, sr, self.sample_rate)
+                return waveform, choice["codec"], choice["quality"]
+            else:
+                # Individual-file mode (backward compatible)
+                aug_path = choice["path"]
+                if not Path(aug_path).exists():
+                    logger.debug("Cache miss (file not found): %s", aug_path)
+                    return None
+                waveform, sr = load_waveform(aug_path, target_sr=self.sample_rate)
+                return waveform, choice["codec"], choice["quality"]
         except Exception as e:
-            logger.debug("Failed to load cached augmentation %s: %s", aug_path, e)
+            logger.debug("Failed to load cached augmentation: %s", e)
             return None
 
     def __getitem__(self, idx: int) -> dict:

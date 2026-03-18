@@ -122,11 +122,13 @@ def find_prediction_files(pred_dir: Path, model_name: str) -> list[Path]:
     """
     found = []
 
-    # Existing runs structure
-    for subdir in ['eval_eval_full', 'eval_eval']:
-        p = pred_dir / model_name / subdir / 'predictions.tsv'
-        if p.exists():
-            found.append(p)
+    # Existing runs structure — prefer eval_eval_full (680k) over eval_eval
+    full_p = pred_dir / model_name / 'eval_eval_full' / 'predictions.tsv'
+    partial_p = pred_dir / model_name / 'eval_eval' / 'predictions.tsv'
+    if full_p.exists():
+        found.append(full_p)
+    elif partial_p.exists():
+        found.append(partial_p)
 
     # Multi-seed job output
     p = pred_dir / f'{model_name}_eval' / 'predictions.tsv'

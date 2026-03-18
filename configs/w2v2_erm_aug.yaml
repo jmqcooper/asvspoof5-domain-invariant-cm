@@ -74,7 +74,7 @@ augmentation:
   codec_prob: 0.5
   codecs: [MP3, AAC, OPUS]
   qualities: [1, 2, 3, 4, 5]
-  cache_dir: null
+  cache_dir: /projects/prjs1904/asvspoof5_augmented_cache
   use_synthetic_labels: true
 
 # Audio

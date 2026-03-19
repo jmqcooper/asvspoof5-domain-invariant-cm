@@ -1,0 +1,81 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=EvalMultiSeed
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=12:00:00
+#SBATCH --output=./scripts/jobs/out/%x_%j.out
+
+# =============================================================================
+# Evaluate all multi-seed checkpoints on the full 680k eval set.
+#
+# Usage:  sbatch scripts/jobs/eval_multi_seed.job
+#
+# Finds all seed* checkpoints under RUNS_DIR and evaluates each.
+# =============================================================================
+
+set -euo pipefail
+
+module purge
+module load 2025
+
+cd "${SLURM_SUBMIT_DIR:-.}"
+if [[ ! -f "pyproject.toml" ]]; then
+  echo "ERROR: pyproject.toml not found in $(pwd)." >&2
+  exit 1
+fi
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --locked
+
+source scripts/jobs/_job_common.sh
+load_and_require_asvspoof5_root
+
+export WANDB_PROJECT=${WANDB_PROJECT:-asvspoof5-dann}
+export HF_HOME=${HF_HOME:-/scratch-shared/$USER/.cache/huggingface}
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+RUNS_BASE="${RUNS_DIR:-./runs}"
+
+echo "=== Evaluating all multi-seed checkpoints ==="
+echo ""
+
+for CHECKPOINT in $(find "${RUNS_BASE}" -path "*seed*/checkpoints/best.pt" | sort); do
+  # Extract run name from path: /runs/<run_name>/checkpoints/best.pt
+  RUN_DIR=$(dirname "$(dirname "${CHECKPOINT}")")
+  FULL_RUN_NAME=$(basename "${RUN_DIR}")
+
+  # Strip timestamp/job-id suffix for clean output dir name
+  # e.g. wavlm_erm_seed123_5223811 -> wavlm_erm_seed123
+  CLEAN_NAME=$(echo "${FULL_RUN_NAME}" | sed -E 's/_[0-9]{6,}$//')
+
+  OUTPUT_DIR="results/predictions/${CLEAN_NAME}_eval"
+
+  if [[ -f "${OUTPUT_DIR}/predictions.tsv" ]]; then
+    echo "SKIP: ${CLEAN_NAME} (predictions.tsv already exists)"
+    continue
+  fi
+
+  mkdir -p "${OUTPUT_DIR}"
+
+  echo "=== Evaluating ${CLEAN_NAME} on eval (680k) ==="
+  echo "  Checkpoint: ${CHECKPOINT}"
+  echo "  Output: ${OUTPUT_DIR}/"
+
+  srun uv run python scripts/evaluate.py \
+      --checkpoint "${CHECKPOINT}" \
+      --split eval \
+      --output-dir "${OUTPUT_DIR}" \
+      --per-domain \
+      --bootstrap \
+      --scorefile \
+      --wandb \
+      --wandb-project asvspoof5-dann
+
+  echo "Done: ${CLEAN_NAME}"
+  echo ""
+done
+
+echo "=== All evaluations complete ==="

@@ -82,26 +82,29 @@ echo "Training complete!"
 echo ""
 
 # ── Evaluate ─────────────────────────────────────────────────────────────────
-# Checkpoint path follows the convention set by train.py
+# train.py appends a suffix to the run name, so we find the checkpoint by glob
 RUNS_BASE="${RUNS_DIR:-./runs}"
-CHECKPOINT="${RUNS_BASE}/${RUN_NAME}/checkpoints/best.pt"
+CHECKPOINT=$(find "${RUNS_BASE}" -path "*/${RUN_NAME}*/checkpoints/best.pt" -print -quit 2>/dev/null)
+if [[ -z "${CHECKPOINT}" ]]; then
+  echo "ERROR: No best.pt found for ${RUN_NAME} under ${RUNS_BASE}" >&2
+  exit 1
+fi
+echo "Found checkpoint: ${CHECKPOINT}"
 
-for SPLIT in dev eval; do
-  OUTPUT_DIR="results/predictions/${RUN_NAME}_${SPLIT}"
-  mkdir -p "${OUTPUT_DIR}"
+OUTPUT_DIR="results/predictions/${RUN_NAME}_eval"
+mkdir -p "${OUTPUT_DIR}"
 
-  echo "=== Evaluating ${RUN_NAME} on ${SPLIT} ==="
-  srun uv run python scripts/evaluate.py \
-      --checkpoint "${CHECKPOINT}" \
-      --split "${SPLIT}" \
-      --output-dir "${OUTPUT_DIR}" \
-      --per-domain \
-      --bootstrap \
-      --scorefile \
-      --wandb \
-      --wandb-project asvspoof5-dann
-  echo "Saved to: ${OUTPUT_DIR}/"
-done
+echo "=== Evaluating ${RUN_NAME} on eval (680k) ==="
+srun uv run python scripts/evaluate.py \
+    --checkpoint "${CHECKPOINT}" \
+    --split eval \
+    --output-dir "${OUTPUT_DIR}" \
+    --per-domain \
+    --bootstrap \
+    --scorefile \
+    --wandb \
+    --wandb-project asvspoof5-dann
+echo "Saved to: ${OUTPUT_DIR}/"
 
 echo ""
 echo "=== Done: ${RUN_NAME} ==="

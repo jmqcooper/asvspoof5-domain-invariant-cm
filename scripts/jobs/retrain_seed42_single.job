@@ -1,0 +1,89 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=Retrain42
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=12:00:00
+#SBATCH --output=./scripts/jobs/out/%x_%A_%a.out
+
+# =============================================================================
+# Retrain a single augmentation-dependent model on seed 42 with current
+# augmentation pipeline, then evaluate on 680k eval set.
+#
+# Usage:  sbatch scripts/jobs/retrain_seed42_single.job <config_name>
+#         e.g. sbatch scripts/jobs/retrain_seed42_single.job wavlm_dann
+#
+# Valid configs: wavlm_dann, wavlm_erm_aug, w2v2_dann, w2v2_erm_aug
+# =============================================================================
+
+set -euo pipefail
+
+CONFIG="${1:?Usage: sbatch retrain_seed42_single.job <config_name>}"
+SEED=42
+RUN_NAME="${CONFIG}_seed${SEED}_v2"
+
+echo "=== Retrain + Eval (seed 42 v2) ==="
+echo "Config: ${CONFIG}"
+echo "Run name: ${RUN_NAME}"
+echo ""
+
+module purge
+module load 2025
+
+cd "${SLURM_SUBMIT_DIR:-.}"
+[[ -f "pyproject.toml" ]] || { echo "ERROR: pyproject.toml not found" >&2; exit 1; }
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --locked
+
+source scripts/jobs/_job_common.sh
+load_and_require_asvspoof5_root
+
+export WANDB_PROJECT=${WANDB_PROJECT:-asvspoof5-dann}
+export HF_HOME=${HF_HOME:-/scratch-shared/$USER/.cache/huggingface}
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+load_ffmpeg_module
+check_ffmpeg_encoders_or_fail
+echo "ffmpeg encoders OK."
+echo ""
+
+RUNS_BASE="${RUNS_DIR:-/projects/prjs1904/runs}"
+
+# ── Train ────────────────────────────────────────────────────────────────────
+echo "=== Training ${RUN_NAME} ==="
+srun uv run python scripts/train.py \
+    --config "configs/${CONFIG}.yaml" \
+    --name "${RUN_NAME}" \
+    --seed "${SEED}" \
+    --wandb \
+    --amp
+
+echo "Training complete!"
+echo ""
+
+# ── Evaluate (680k) ─────────────────────────────────────────────────────────
+CHECKPOINT=$(find "${RUNS_BASE}" -path "*/${RUN_NAME}_*/checkpoints/best.pt" -print -quit 2>/dev/null)
+if [[ -z "${CHECKPOINT}" ]]; then
+  echo "ERROR: No checkpoint found for ${RUN_NAME}" >&2
+  exit 1
+fi
+echo "Found checkpoint: ${CHECKPOINT}"
+
+OUTPUT_DIR="results/predictions/${RUN_NAME}_eval"
+mkdir -p "${OUTPUT_DIR}"
+
+echo "=== Evaluating ${RUN_NAME} on eval (680k) ==="
+srun uv run python scripts/evaluate.py \
+    --checkpoint "${CHECKPOINT}" \
+    --split eval \
+    --output-dir "${OUTPUT_DIR}" \
+    --per-domain \
+    --bootstrap \
+    --scorefile \
+    --wandb \
+    --wandb-project asvspoof5-dann
+
+echo "=== Done: ${RUN_NAME} ==="

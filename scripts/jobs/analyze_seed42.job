@@ -1,0 +1,148 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=Analyze42
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=08:00:00
+#SBATCH --output=./scripts/jobs/out/%x_%j.out
+
+# =============================================================================
+# Full interpretability analysis on seed 42 models (both backbones).
+# Uses original ERM checkpoints + retrained v2 DANN checkpoints.
+#
+# Runs: probe (12-class codec) + CKA + activation patching (with minDCF)
+#
+# Usage:  sbatch --dependency=afterok:<retrain_job_ids> scripts/jobs/analyze_seed42.job
+# =============================================================================
+
+set -euo pipefail
+
+module purge
+module load 2025
+
+cd "${SLURM_SUBMIT_DIR:-.}"
+[[ -f "pyproject.toml" ]] || { echo "ERROR: pyproject.toml not found" >&2; exit 1; }
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --locked
+
+source scripts/jobs/_job_common.sh
+load_and_require_asvspoof5_root
+
+export WANDB_PROJECT=${WANDB_PROJECT:-asvspoof5-dann}
+export HF_HOME=${HF_HOME:-/scratch-shared/$USER/.cache/huggingface}
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+RUNS_BASE="${RUNS_DIR:-/projects/prjs1904/runs}"
+SEED=42
+
+echo "============================================"
+echo "Interpretability Analysis (seed 42)"
+echo "============================================"
+echo ""
+
+# Helper: find best.pt for a given run name pattern
+find_ckpt() {
+  local pattern="$1"
+  local ckpt
+  ckpt=$(find "${RUNS_BASE}" -path "*/${pattern}*/checkpoints/best.pt" -print -quit 2>/dev/null)
+  if [[ -z "${ckpt}" ]]; then
+    echo "ERROR: No checkpoint found for pattern '${pattern}'" >&2
+    exit 1
+  fi
+  echo "${ckpt}"
+}
+
+# Original ERM checkpoints — use exact directory names to avoid matching erm_aug
+WAVLM_ERM_CKPT="${RUNS_BASE}/wavlm_erm/checkpoints/best.pt"
+W2V2_ERM_CKPT="${RUNS_BASE}/w2v2_erm/checkpoints/best.pt"
+[[ -f "${WAVLM_ERM_CKPT}" ]] || { echo "ERROR: WavLM ERM checkpoint not found: ${WAVLM_ERM_CKPT}" >&2; exit 1; }
+[[ -f "${W2V2_ERM_CKPT}" ]] || { echo "ERROR: W2V2 ERM checkpoint not found: ${W2V2_ERM_CKPT}" >&2; exit 1; }
+
+# Retrained v2 DANN checkpoints
+WAVLM_DANN_CKPT=$(find_ckpt "wavlm_dann_seed${SEED}_v2")
+W2V2_DANN_CKPT=$(find_ckpt "w2v2_dann_seed${SEED}_v2")
+
+echo "Checkpoints:"
+echo "  WavLM ERM:     ${WAVLM_ERM_CKPT}"
+echo "  WavLM DANN v2: ${WAVLM_DANN_CKPT}"
+echo "  W2V2 ERM:      ${W2V2_ERM_CKPT}"
+echo "  W2V2 DANN v2:  ${W2V2_DANN_CKPT}"
+echo ""
+
+# ── Domain Probes (12-class codec) ──────────────────────────────────────────
+echo "--- Domain Probes ---"
+echo ""
+
+echo "=== WavLM: ERM vs DANN v2 ==="
+srun uv run python scripts/probe_domain.py \
+    --erm-checkpoint "${WAVLM_ERM_CKPT}" \
+    --dann-checkpoint "${WAVLM_DANN_CKPT}" \
+    --output-dir "results/analysis_v2/probes_wavlm" \
+    --domain-source protocol \
+    --split eval \
+    --wandb
+echo ""
+
+echo "=== W2V2: ERM vs DANN v2 ==="
+srun uv run python scripts/probe_domain.py \
+    --erm-checkpoint "${W2V2_ERM_CKPT}" \
+    --dann-checkpoint "${W2V2_DANN_CKPT}" \
+    --output-dir "results/analysis_v2/probes_w2v2" \
+    --domain-source protocol \
+    --split eval \
+    --wandb
+echo ""
+
+# ── CKA Analysis ────────────────────────────────────────────────────────────
+echo "--- CKA Analysis ---"
+echo ""
+
+echo "=== WavLM CKA ==="
+srun uv run python scripts/run_cka.py \
+    --erm-checkpoint "${WAVLM_ERM_CKPT}" \
+    --dann-checkpoint "${WAVLM_DANN_CKPT}" \
+    --output-dir "results/analysis_v2/cka_wavlm" \
+    --split eval \
+    --wandb
+echo ""
+
+echo "=== W2V2 CKA ==="
+srun uv run python scripts/run_cka.py \
+    --erm-checkpoint "${W2V2_ERM_CKPT}" \
+    --dann-checkpoint "${W2V2_DANN_CKPT}" \
+    --output-dir "results/analysis_v2/cka_w2v2" \
+    --split eval \
+    --wandb
+echo ""
+
+# ── Activation Patching (with minDCF) ──────────────────────────────────────
+echo "--- Activation Patching ---"
+echo ""
+
+echo "=== WavLM Patching: DANN v2 → ERM ==="
+srun uv run python scripts/run_patching.py \
+    --source "${WAVLM_DANN_CKPT}" \
+    --target "${WAVLM_ERM_CKPT}" \
+    --output-dir "results/analysis_v2/patching_wavlm" \
+    --split eval \
+    --n-samples 500 \
+    --wandb
+echo ""
+
+echo "=== W2V2 Patching: DANN v2 → ERM ==="
+srun uv run python scripts/run_patching.py \
+    --source "${W2V2_DANN_CKPT}" \
+    --target "${W2V2_ERM_CKPT}" \
+    --output-dir "results/analysis_v2/patching_w2v2" \
+    --split eval \
+    --n-samples 500 \
+    --wandb
+echo ""
+
+echo "============================================"
+echo "All analysis complete!"
+echo "Results in: results/analysis_v2/"
+echo "============================================"

@@ -25,7 +25,7 @@ import torch
 from tqdm import tqdm
 
 from asvspoof5_domain_invariant_cm.data import ASVspoof5Dataset, AudioCollator, load_vocab
-from asvspoof5_domain_invariant_cm.evaluation import compute_eer
+from asvspoof5_domain_invariant_cm.evaluation import compute_eer, compute_min_dcf
 from asvspoof5_domain_invariant_cm.models import (
     ClassifierHead,
     DANNModel,
@@ -336,12 +336,17 @@ def run_repr_patching(
     # Compute metrics
     baseline_eer, _ = compute_eer(baseline_scores, all_labels)
     patched_eer, _ = compute_eer(patched_scores, all_labels)
+    baseline_min_dcf = compute_min_dcf(baseline_scores, all_labels)
+    patched_min_dcf = compute_min_dcf(patched_scores, all_labels)
 
     return {
         "baseline_eer": float(baseline_eer),
         "patched_eer": float(patched_eer),
         "eer_change": float(patched_eer - baseline_eer),
         "eer_change_percent": float((patched_eer - baseline_eer) / baseline_eer * 100) if baseline_eer > 0 else 0,
+        "baseline_min_dcf": float(baseline_min_dcf),
+        "patched_min_dcf": float(patched_min_dcf),
+        "min_dcf_change": float(patched_min_dcf - baseline_min_dcf),
         "mean_score_change": float(np.mean(score_changes)),
         "std_score_change": float(np.std(score_changes)),
         "median_score_change": float(np.median(score_changes)),
@@ -465,6 +470,8 @@ def run_layer_patching(
 
         baseline_eer, _ = compute_eer(baseline_scores, all_labels)
         patched_eer, _ = compute_eer(patched_scores, all_labels)
+        baseline_min_dcf = compute_min_dcf(baseline_scores, all_labels)
+        patched_min_dcf = compute_min_dcf(patched_scores, all_labels)
 
         score_change = patched_scores - baseline_scores
 
@@ -472,6 +479,9 @@ def run_layer_patching(
             "baseline_eer": float(baseline_eer),
             "patched_eer": float(patched_eer),
             "eer_change": float(patched_eer - baseline_eer),
+            "baseline_min_dcf": float(baseline_min_dcf),
+            "patched_min_dcf": float(patched_min_dcf),
+            "min_dcf_change": float(patched_min_dcf - baseline_min_dcf),
             "mean_score_change": float(np.mean(score_change)),
             "std_score_change": float(np.std(score_change)),
         }
@@ -512,6 +522,9 @@ def log_to_wandb(
                 "patching/repr/patched_eer": repr_results.get("patched_eer"),
                 "patching/repr/eer_change": repr_results.get("eer_change"),
                 "patching/repr/eer_change_percent": repr_results.get("eer_change_percent"),
+                "patching/repr/baseline_min_dcf": repr_results.get("baseline_min_dcf"),
+                "patching/repr/patched_min_dcf": repr_results.get("patched_min_dcf"),
+                "patching/repr/min_dcf_change": repr_results.get("min_dcf_change"),
                 "patching/repr/mean_score_change": repr_results.get("mean_score_change"),
             })
 

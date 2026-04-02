@@ -29,6 +29,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from thesis_style import PALETTE, MODEL_LABELS, set_style
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-7s | %(message)s",
@@ -38,17 +41,9 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Style Configuration (matching plot_rq3_combined.py)
+# Configuration
 # ---------------------------------------------------------------------------
-COLORS = {
-    "wavlm_erm": "#E57373",   # Light red/coral
-    "wavlm_dann": "#64B5F6",  # Light blue
-    "w2v2_erm": "#FFB74D",    # Light orange
-    "w2v2_dann": "#81C784",   # Light green
-    "lfcc_gmm": "#A1887F",
-    "trillsson_logistic": "#4DB6AC",
-    "trillsson_mlp": "#9575CD",
-}
+COLORS = PALETTE
 
 MODEL_RUN_DIRS = {
     "wavlm_erm": "wavlm_erm",
@@ -58,16 +53,6 @@ MODEL_RUN_DIRS = {
     "lfcc_gmm": "lfcc_gmm_32",
     "trillsson_logistic": "trillsson_logistic",
     "trillsson_mlp": "trillsson_mlp",
-}
-
-MODEL_LABELS = {
-    "wavlm_erm": "WavLM ERM",
-    "wavlm_dann": "WavLM DANN",
-    "w2v2_erm": "W2V2 ERM",
-    "w2v2_dann": "W2V2 DANN",
-    "lfcc_gmm": "LFCC-GMM",
-    "trillsson_logistic": "TRILLsson Logistic",
-    "trillsson_mlp": "TRILLsson MLP",
 }
 
 CODEC_NAMES = {
@@ -84,24 +69,6 @@ CODEC_NAMES = {
     "C11": "mu-law",
     "NONE": "Uncoded",
 }
-
-STYLE_CONFIG = {
-    "font.family": "serif",
-    "font.size": 11,
-    "axes.labelsize": 12,
-    "axes.titlesize": 13,
-    "legend.fontsize": 10,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "figure.dpi": 150,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "axes.grid": True,
-    "grid.alpha": 0.3,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-}
-
 
 # ---------------------------------------------------------------------------
 # Data Loading
@@ -219,7 +186,7 @@ def plot_per_codec_eer(
         figsize: Figure dimensions
         show_values: Whether to show EER values above bars
     """
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
     
     # Get codecs in order
     codecs = ["C01", "C02", "C03", "C04", "C05", "C06",

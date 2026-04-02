@@ -52,6 +52,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from thesis_style import PALETTE, MODEL_LABELS, set_style
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-7s | %(message)s",
@@ -66,31 +69,13 @@ logger = logging.getLogger(__name__)
 N_CODEC_CLASSES = 12
 CHANCE_LEVEL = 1.0 / N_CODEC_CLASSES  # ~0.083
 
-# Color scheme matching existing repo aesthetics
+# Color scheme: backbone colors use ERM blue family
 COLORS = {
-    "wavlm": "#4C72B0",      # Steel blue
-    "w2v2": "#DD8452",       # Coral/orange
-    "erm": "#E57373",        # Light red/coral (from existing plot)
-    "dann": "#64B5F6",       # Light blue (from existing plot)
-    "chance": "#9E9E9E",     # Gray
-}
-
-# Plot style settings
-STYLE_CONFIG = {
-    "font.family": "serif",
-    "font.size": 11,
-    "axes.labelsize": 12,
-    "axes.titlesize": 13,
-    "legend.fontsize": 10,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "figure.dpi": 150,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "axes.grid": True,
-    "grid.alpha": 0.3,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
+    "wavlm": PALETTE["wavlm_erm"],    # Bold blue
+    "w2v2": PALETTE["w2v2_erm"],       # Light blue
+    "erm": PALETTE["wavlm_erm"],       # Blue (ERM method)
+    "dann": PALETTE["wavlm_dann"],     # Red (DANN method)
+    "chance": PALETTE["chance"],        # Gray
 }
 
 
@@ -554,7 +539,7 @@ def create_combined_figure(
     """
     
     # Apply style
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
     

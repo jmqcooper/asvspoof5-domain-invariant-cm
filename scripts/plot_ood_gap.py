@@ -30,6 +30,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from thesis_style import PALETTE, MODEL_LABELS, set_style
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-7s | %(message)s",
@@ -49,33 +52,13 @@ MODEL_RUN_DIRS = {
 
 
 # ---------------------------------------------------------------------------
-# Style Configuration (matching plot_rq3_combined.py)
+# Style Configuration
 # ---------------------------------------------------------------------------
+# Plot-specific semantic colors (not model colors)
 COLORS = {
-    "wavlm": "#4C72B0",      # Steel blue
-    "w2v2": "#DD8452",       # Coral/orange
-    "erm": "#E57373",        # Light red/coral
-    "dann": "#64B5F6",       # Light blue
-    "dev": "#90CAF9",        # Light blue (in-domain)
-    "eval": "#EF9A9A",       # Light red (out-of-domain)
+    "dev": "#93C5FD",        # Blue 300 (in-domain)
+    "eval": "#FCA5A5",       # Red 300 (out-of-domain)
     "gap_arrow": "#333333",  # Dark gray
-}
-
-STYLE_CONFIG = {
-    "font.family": "serif",
-    "font.size": 11,
-    "axes.labelsize": 12,
-    "axes.titlesize": 13,
-    "legend.fontsize": 10,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "figure.dpi": 150,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "axes.grid": True,
-    "grid.alpha": 0.3,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
 }
 
 
@@ -279,19 +262,15 @@ def plot_ood_gap_bars(
     Layout: Groups by backbone, then ERM vs DANN within each backbone.
     Each group has 2 bars (dev and eval) with connecting arrows showing the gap.
     """
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
     
     fig, ax = plt.subplots(figsize=figsize)
     
     # Define groups
     groups = [
-        ("WavLM ERM", "wavlm_erm"),
-        ("WavLM DANN", "wavlm_dann"),
-        ("W2V2 ERM", "w2v2_erm"),
-        ("W2V2 DANN", "w2v2_dann"),
-        ("LFCC-GMM", "lfcc_gmm"),
-        ("TRILLsson Logistic", "trillsson_logistic"),
-        ("TRILLsson MLP", "trillsson_mlp"),
+        (MODEL_LABELS.get(k, k), k)
+        for k in ["wavlm_erm", "wavlm_dann", "w2v2_erm", "w2v2_dann",
+                   "lfcc_gmm", "trillsson_logistic", "trillsson_mlp"]
     ]
     groups = [group for group in groups if group[1] in data]
     
@@ -424,19 +403,19 @@ def plot_ood_gap_slope(
     
     Alternative visualization showing the "slope" from dev to eval for each model.
     """
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
     
     fig, ax = plt.subplots(figsize=figsize)
     
     # Define models and their properties
     models = {
-        "wavlm_erm": {"label": "WavLM ERM", "color": "#E57373", "marker": "o", "linestyle": "-"},
-        "wavlm_dann": {"label": "WavLM DANN", "color": "#64B5F6", "marker": "s", "linestyle": "-"},
-        "w2v2_erm": {"label": "W2V2 ERM", "color": "#FFB74D", "marker": "^", "linestyle": "--"},
-        "w2v2_dann": {"label": "W2V2 DANN", "color": "#81C784", "marker": "D", "linestyle": "--"},
-        "lfcc_gmm": {"label": "LFCC-GMM", "color": "#A1887F", "marker": "P", "linestyle": "-."},
-        "trillsson_logistic": {"label": "TRILLsson Logistic", "color": "#4DB6AC", "marker": "X", "linestyle": "-."},
-        "trillsson_mlp": {"label": "TRILLsson MLP", "color": "#9575CD", "marker": "*", "linestyle": "-."},
+        "wavlm_erm": {"label": MODEL_LABELS["wavlm_erm"], "color": PALETTE["wavlm_erm"], "marker": "o", "linestyle": "-"},
+        "wavlm_dann": {"label": MODEL_LABELS["wavlm_dann"], "color": PALETTE["wavlm_dann"], "marker": "s", "linestyle": "-"},
+        "w2v2_erm": {"label": MODEL_LABELS["w2v2_erm"], "color": PALETTE["w2v2_erm"], "marker": "^", "linestyle": "--"},
+        "w2v2_dann": {"label": MODEL_LABELS["w2v2_dann"], "color": PALETTE["w2v2_dann"], "marker": "D", "linestyle": "--"},
+        "lfcc_gmm": {"label": MODEL_LABELS["lfcc_gmm"], "color": PALETTE["lfcc_gmm"], "marker": "P", "linestyle": "-."},
+        "trillsson_logistic": {"label": MODEL_LABELS["trillsson_logistic"], "color": PALETTE["trillsson_logistic"], "marker": "X", "linestyle": "-."},
+        "trillsson_mlp": {"label": MODEL_LABELS["trillsson_mlp"], "color": PALETTE["trillsson_mlp"], "marker": "*", "linestyle": "-."},
     }
     
     x_positions = [0, 1]  # Dev (0) and Eval (1)

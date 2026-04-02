@@ -42,6 +42,9 @@ import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from thesis_style import PALETTE, set_style
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-7s | %(message)s",
@@ -54,35 +57,17 @@ FIGSIZE_SINGLE = (7.2, 4.8)
 FIGSIZE_WIDE = (12, 4.8)
 DPI = 300
 
-# Style contract matching plot_rq3_combined.py
-STYLE_CONFIG = {
-    "font.family": "serif",
-    "font.size": 11,
-    "axes.labelsize": 12,
-    "axes.titlesize": 13,
-    "legend.fontsize": 10,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "figure.dpi": 150,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "axes.grid": True,
-    "grid.alpha": 0.3,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-}
-
-# Thesis palette aligned with RQ3 styling
+# Thesis palette: RQ4 is about DANN, so "wavlm" maps to wavlm_dann
 COLORS = {
-    "erm": "#E57373",
-    "dann": "#64B5F6",
-    "wavlm": "#4C72B0",
-    "w2v2": "#DD8452",
-    "chance": "#9E9E9E",
-    "neutral": "#90A4AE",
-    "highlight": "#DD8452",
+    "erm": PALETTE["wavlm_erm"],
+    "dann": PALETTE["wavlm_dann"],
+    "wavlm": PALETTE["wavlm_dann"],     # RQ4 focuses on DANN
+    "w2v2": PALETTE["w2v2_dann"],
+    "chance": PALETTE["chance"],
+    "neutral": PALETTE["neutral"],
+    "highlight": PALETTE["highlight"],
     "info_blue": "#6FA8DC",
-    "divergent": "#D32F2F",
+    "divergent": PALETTE["divergent"],
 }
 
 INTERVENTION_ORDER = [
@@ -137,7 +122,7 @@ def plot_cka_layer_bar(df: pd.DataFrame, output_path: Path) -> None:
     
     Highlights layer 11's dramatic divergence.
     """
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
 
     # Filter to pool_weight_transplant layer_contrib (the meaningful comparison)
     layer_data = df[
@@ -205,7 +190,7 @@ def plot_cka_layer_bar(df: pd.DataFrame, output_path: Path) -> None:
 def plot_intervention_comparison(df: pd.DataFrame, output_path: Path) -> None:
     """Create grouped bar chart comparing intervention effects on EER and probe accuracy."""
 
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
     df_sorted = sort_interventions(df)
     fig, axes = plt.subplots(1, 2, figsize=FIGSIZE_WIDE)
 
@@ -305,7 +290,7 @@ def plot_intervention_comparison(df: pd.DataFrame, output_path: Path) -> None:
 
 def plot_cka_heatmap(df: pd.DataFrame, output_path: Path) -> None:
     """Create heatmap showing CKA across different intervention modes."""
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
 
     # Get unique modes and their CKA summaries
     modes = df['mode'].unique()
@@ -379,7 +364,7 @@ def plot_cka_heatmap(df: pd.DataFrame, output_path: Path) -> None:
 
 def plot_delta_scatter(df: pd.DataFrame, output_path: Path) -> None:
     """Scatter plot: Δ EER vs Δ Probe accuracy for each intervention."""
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
     fig, ax = plt.subplots(figsize=(7.6, 5.4))
 
     # Filter out baseline (delta = 0)

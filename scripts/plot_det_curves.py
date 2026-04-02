@@ -20,27 +20,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from thesis_style import COLORS, STYLE, set_style
-
-
-# ── Colours ──────────────────────────────────────────────────────────────────
-COLOR_MAP = {
-    'wavlm_erm':      '#D4795A',
-    'wavlm_dann':     '#4CA08A',
-    'wavlm_erm_aug':  '#B8623F',
-    'w2v2_erm':       '#E8B4A0',
-    'w2v2_dann':      '#A5D5C3',
-    'w2v2_erm_aug':   '#D49A80',
-}
-
-LABEL_MAP = {
-    'wavlm_erm':      'WavLM ERM',
-    'wavlm_dann':     'WavLM DANN',
-    'wavlm_erm_aug':  'WavLM ERM+Aug',
-    'w2v2_erm':       'W2V2 ERM',
-    'w2v2_dann':      'W2V2 DANN',
-    'w2v2_erm_aug':   'W2V2 ERM+Aug',
-}
+from thesis_style import PALETTE, MODEL_LABELS, LINE_STYLES, STYLE, set_style
 
 KNOWN_EERS = {
     'wavlm_erm':  8.47,
@@ -182,10 +162,12 @@ def plot_det_panel(ax, models: dict, title: str):
     models: dict of {name: (far, frr, eer)}
     """
     for name, (far, frr, eer) in models.items():
-        color = COLOR_MAP.get(name, '#888888')
-        label_name = LABEL_MAP.get(name, name.replace('_', ' ').upper())
+        color = PALETTE.get(name, '#888888')
+        label_name = MODEL_LABELS.get(name, name.replace('_', ' ').upper())
+        ls_props = LINE_STYLES.get(name, {"ls": "-", "lw": 2.0})
         eer_pct = eer * 100
-        ax.plot(far * 100, frr * 100, color=color, linewidth=2,
+        ax.plot(far * 100, frr * 100, color=color,
+                linestyle=ls_props["ls"], linewidth=ls_props["lw"],
                 label=f'{label_name} (EER={eer_pct:.2f}%)')
         # Mark EER point
         ax.plot(eer_pct, eer_pct, 'o', color=color, markersize=8, zorder=5)

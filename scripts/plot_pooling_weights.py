@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Generate pooling weights comparison figure: ERM vs DANN."""
 
+import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from thesis_style import PALETTE, set_style
 
 # Final learned pooling weights (softmax-normalized) from training logs
 # ERM: best checkpoint (epoch 12)
@@ -22,6 +26,7 @@ layers = list(range(12))
 erm_w = np.array(erm_weights)
 dann_w = np.array(dann_weights)
 
+set_style()
 fig, axes = plt.subplots(1, 2, figsize=(14, 5), gridspec_kw={"width_ratios": [2, 1]})
 
 # --- Left: side-by-side bar chart ---
@@ -29,8 +34,8 @@ ax = axes[0]
 x = np.arange(len(layers))
 width = 0.35
 
-bars_erm = ax.bar(x - width/2, erm_w * 100, width, label="ERM", color="#4a90d9", edgecolor="black", linewidth=0.5)
-bars_dann = ax.bar(x + width/2, dann_w * 100, width, label="DANN", color="#e74c3c", edgecolor="black", linewidth=0.5)
+bars_erm = ax.bar(x - width/2, erm_w * 100, width, label="ERM", color=PALETTE["wavlm_erm"], edgecolor="black", linewidth=0.5)
+bars_dann = ax.bar(x + width/2, dann_w * 100, width, label="DANN", color=PALETTE["wavlm_dann"], edgecolor="black", linewidth=0.5)
 
 ax.set_xlabel("Transformer Layer", fontsize=13)
 ax.set_ylabel("Pooling Weight (%)", fontsize=13)
@@ -45,7 +50,7 @@ ax.grid(axis="y", alpha=0.3)
 # --- Right: delta (DANN - ERM) ---
 ax2 = axes[1]
 delta = (dann_w - erm_w) * 100
-colors = ["#e74c3c" if d > 0 else "#4a90d9" for d in delta]
+colors = [PALETTE["wavlm_dann"] if d > 0 else PALETTE["wavlm_erm"] for d in delta]
 ax2.barh(x, delta, color=colors, edgecolor="black", linewidth=0.5)
 ax2.set_yticks(x)
 ax2.set_yticklabels([f"L{i}" for i in layers], fontsize=10)

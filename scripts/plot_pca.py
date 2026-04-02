@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from thesis_style import COLORS, STYLE, set_style
+from thesis_style import PALETTE, STYLE, set_style
 
-COLOR_CODED = '#D4795A'    # Terracotta
-COLOR_UNCODED = '#4CA08A'  # Teal
+COLOR_CODED = PALETTE["wavlm_dann"]     # Red (coded = domain effect)
+COLOR_UNCODED = PALETTE["wavlm_erm"]    # Blue (uncoded = baseline)
 MAX_POINTS = 2000
 ALPHA = 0.3
 

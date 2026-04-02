@@ -33,6 +33,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from thesis_style import PALETTE, set_style
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-7s | %(message)s",
@@ -45,28 +48,11 @@ logger = logging.getLogger(__name__)
 # Style Configuration (matching plot_rq3_combined.py)
 # ---------------------------------------------------------------------------
 COLORS = {
-    "v1_exponential": "#E57373",  # Light red
-    "v2_linear": "#64B5F6",       # Light blue
-    "v3_cosine": "#81C784",       # Light green (optional)
-    "loss": "#9E9E9E",            # Gray
-    "eer": "#FF9800",             # Orange
-}
-
-STYLE_CONFIG = {
-    "font.family": "serif",
-    "font.size": 11,
-    "axes.labelsize": 12,
-    "axes.titlesize": 13,
-    "legend.fontsize": 10,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "figure.dpi": 150,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "axes.grid": True,
-    "grid.alpha": 0.3,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
+    "v1_exponential": PALETTE["wavlm_dann"],    # Red (DANN method color)
+    "v2_linear": PALETTE["wavlm_erm"],           # Blue
+    "v3_cosine": PALETTE["wavlm_erm_aug"],       # Amber
+    "loss": PALETTE["chance"],                    # Gray
+    "eer": PALETTE["wavlm_erm_aug"],             # Amber
 }
 
 
@@ -184,7 +170,7 @@ def plot_lambda_schedules(
         figsize: Figure dimensions
         show_dynamics: If True, overlay training curves
     """
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
     
     config = data.get("config", {})
     max_epochs = config.get("max_epochs", 10)
@@ -270,7 +256,7 @@ def plot_lambda_comparison_bars(
     figsize: tuple[float, float] = (8, 5),
 ) -> plt.Figure:
     """Plot bar chart comparing final results of different schedules."""
-    plt.rcParams.update(STYLE_CONFIG)
+    set_style()
     
     fig, ax = plt.subplots(figsize=figsize)
     

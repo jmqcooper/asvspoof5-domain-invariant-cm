@@ -1,0 +1,146 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=CompTransplant
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=24:00:00
+#SBATCH --output=./scripts/jobs/out/%x_%j.out
+
+# =============================================================================
+# Component transplant (pool_weight_transplant + layer_patch_*) for all 6
+# multi-seed ERM-DANN pairs across both backbones:
+#
+#   WavLM x {seed42, seed123, seed456}
+#   W2V2  x {seed42, seed123, seed456}
+#
+# Each pair runs all four intervention modes defined in the RQ4 notebook
+# (layer_patch_hidden, layer_patch_mixed, layer_patch_repr,
+# pool_weight_transplant) and writes per-pair outputs under
+# results/component_transplant/{backbone}_seed{N}_<artifact>.
+#
+# The notebook file is parameterized via env vars (RQ4_MODEL_A_RUN /
+# RQ4_MODEL_B_RUN / RQ4_OUTPUT_PREFIX / RQ4_OUTPUT_DIR / RUNS_DIR).
+#
+# Also extracts DANN training dynamics (best_epoch + lambda at save) up
+# front so the user has them even if the heavy compute is interrupted.
+#
+# Usage:  sbatch scripts/jobs/component_transplant_multi_seed.job
+# =============================================================================
+
+set -euo pipefail
+
+module purge
+module load 2025
+
+cd "${SLURM_SUBMIT_DIR:-.}"
+if [[ ! -f "pyproject.toml" ]]; then
+  echo "ERROR: pyproject.toml not found in $(pwd)." >&2
+  exit 1
+fi
+echo "Repo root: $(pwd)"
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --locked
+
+# shellcheck disable=SC1091
+source scripts/jobs/_job_common.sh
+load_and_require_asvspoof5_root
+
+export WANDB_PROJECT=${WANDB_PROJECT:-asvspoof5-dann}
+export HF_HOME=${HF_HOME:-/scratch-shared/$USER/.cache/huggingface}
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export RUNS_DIR=${RUNS_DIR:-/gpfs/work5/0/prjs1904/runs}
+
+OUT_BASE="results/component_transplant"
+mkdir -p "$OUT_BASE"
+
+# Verify CUDA
+uv run python - <<'EOF'
+import torch
+print(f"CUDA available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"Active GPU: {torch.cuda.get_device_name(0)}")
+EOF
+echo ""
+
+# -----------------------------------------------------------------------------
+# 0. Training dynamics (fast; run first so we have the data even if
+#    the heavy compute fails)
+# -----------------------------------------------------------------------------
+echo "=== 0. Extracting DANN training dynamics ==="
+uv run python scripts/extract_dann_dynamics.py \
+    --runs-dir "$RUNS_DIR" \
+    --output "$OUT_BASE/dann_dynamics.csv"
+echo ""
+
+# -----------------------------------------------------------------------------
+# 1. Component transplant for each (backbone, seed) pair
+# -----------------------------------------------------------------------------
+#
+# (erm_run, dann_run, prefix)
+PAIRS=(
+  "wavlm_erm:wavlm_dann_seed42_v2_1e2d5c7:wavlm_seed42"
+  "wavlm_erm_seed123_5223811:wavlm_dann_seed123_5223811:wavlm_seed123"
+  "wavlm_erm_seed456_5223811:wavlm_dann_seed456_5223811:wavlm_seed456"
+  "w2v2_erm:w2v2_dann_seed42_v2_1e2d5c7:w2v2_seed42"
+  "w2v2_erm_seed123_5223811:w2v2_dann_seed123_5223811:w2v2_seed123"
+  "w2v2_erm_seed456_5223811:w2v2_dann_seed456_5223811:w2v2_seed456"
+)
+
+# Shared RQ4 parameters (kept consistent with original single-pair run so
+# numbers are directly comparable to the existing seed-42 results).
+export RQ4_EVAL_SPLIT=${RQ4_EVAL_SPLIT:-eval}
+export RQ4_PROBE_SPLIT=${RQ4_PROBE_SPLIT:-eval}
+export RQ4_MAX_EVAL_SAMPLES=${RQ4_MAX_EVAL_SAMPLES:-20000}
+export RQ4_MAX_CKA_SAMPLES=${RQ4_MAX_CKA_SAMPLES:-5000}
+export RQ4_MAX_PROBE_SAMPLES=${RQ4_MAX_PROBE_SAMPLES:-5000}
+export RQ4_RUN_ALL_MODES=${RQ4_RUN_ALL_MODES:-true}
+export RQ4_OUTPUT_DIR="$OUT_BASE"
+
+for entry in "${PAIRS[@]}"; do
+  erm_run="${entry%%:*}"
+  rest="${entry#*:}"
+  dann_run="${rest%%:*}"
+  prefix="${rest#*:}"
+
+  results_csv="$OUT_BASE/${prefix}_results_summary.csv"
+  if [[ -f "$results_csv" ]]; then
+    echo "SKIP $prefix (results already present: $results_csv)"
+    continue
+  fi
+
+  if [[ ! -f "$RUNS_DIR/$erm_run/checkpoints/best.pt" ]]; then
+    echo "WARN  missing ERM checkpoint for $prefix: $RUNS_DIR/$erm_run/checkpoints/best.pt" >&2
+    continue
+  fi
+  if [[ ! -f "$RUNS_DIR/$dann_run/checkpoints/best.pt" ]]; then
+    echo "WARN  missing DANN checkpoint for $prefix: $RUNS_DIR/$dann_run/checkpoints/best.pt" >&2
+    continue
+  fi
+
+  echo ""
+  echo "=== Transplant $prefix ==="
+  echo "  ERM:  $erm_run"
+  echo "  DANN: $dann_run"
+  echo "  Out prefix: $prefix"
+
+  export RQ4_MODEL_A_RUN="$erm_run"
+  export RQ4_MODEL_A_CKPT="best.pt"
+  export RQ4_MODEL_B_RUN="$dann_run"
+  export RQ4_MODEL_B_CKPT="best.pt"
+  export RQ4_MODEL_A_LABEL="ERM"
+  export RQ4_MODEL_B_LABEL="DANN"
+  export RQ4_OUTPUT_PREFIX="$prefix"
+  export RQ4_REPR_CACHE="${prefix}_repr_cache.npz"
+  export RQ4_METADATA_JSON="${prefix}_metadata.json"
+
+  srun uv run python notebooks/rq4_activation_patching.py
+
+  echo "Done: $prefix"
+done
+
+echo ""
+echo "=== All component transplant runs complete ==="
+ls -la "$OUT_BASE"/

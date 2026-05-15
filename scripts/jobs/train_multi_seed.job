@@ -5,25 +5,29 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=48:00:00
-#SBATCH --array=1-2
 #SBATCH --output=./scripts/jobs/out/%x_%A_%a.out
 
 # =============================================================================
 # Multi-Seed Training + Evaluation
 #
-# Usage:  sbatch scripts/jobs/train_multi_seed.job wavlm_dann
+# Usage:  sbatch --array=1-N scripts/jobs/train_multi_seed.job <config>
 #
-# Runs training with 2 additional seeds (seed 42 already completed).
-# Combined with existing seed-42 runs, this gives 3 seeds per config.
-# Seeds: 123, 456  (seed 42 = existing runs)
+# By default, runs seeds 123 and 456 (the original additional pair).
+# Override with the SEEDS env var, e.g. to run two new seeds 789 and 2024:
+#   SEEDS="789 2024" sbatch --array=1-2 --export=ALL,SEEDS \\
+#       scripts/jobs/train_multi_seed.job wavlm_dann
 # =============================================================================
 
 set -euo pipefail
 
 CONFIG="${1:?Usage: sbatch train_multi_seed.job <config_name>}"
 
-# Map array task ID → seed (seed 42 already done)
-SEEDS=(123 456)
+# Map array task ID → seed. Override seed list via SEEDS env var.
+read -r -a SEEDS <<< "${SEEDS:-123 456}"
+if (( SLURM_ARRAY_TASK_ID > ${#SEEDS[@]} )); then
+  echo "ERROR: array task $SLURM_ARRAY_TASK_ID exceeds SEEDS length ${#SEEDS[@]}" >&2
+  exit 1
+fi
 SEED=${SEEDS[$((SLURM_ARRAY_TASK_ID - 1))]}
 RUN_NAME="${CONFIG}_seed${SEED}"
 

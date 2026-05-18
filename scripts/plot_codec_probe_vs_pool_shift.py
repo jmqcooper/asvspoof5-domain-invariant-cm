@@ -42,8 +42,8 @@ COLORS = {
 }
 
 BACKBONE_LABEL = {"wavlm": "WavLM", "w2v2": "Wav2Vec 2.0"}
-ERM_SEEDS = ["seed42", "seed123", "seed456"]
-DANN_SEEDS = ["seed42_v2", "seed123", "seed456"]
+ERM_SEEDS = ["seed42", "seed123", "seed456", "seed789", "seed2024"]
+DANN_SEEDS = ["seed42_v2", "seed123", "seed456", "seed789", "seed2024"]
 
 
 def load_pool(backbone: str, method: str, seed: str) -> np.ndarray:

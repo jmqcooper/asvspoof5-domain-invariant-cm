@@ -27,23 +27,46 @@ RUNS_BASE="${RUNS_DIR:-/gpfs/work5/0/prjs1904/runs}"
 OUT_DIR="results/pool_weights"
 mkdir -p "$OUT_DIR"
 
-# (cluster_run_dir, clean_output_name) pairs.
+# (cluster_run_dir_or_glob, clean_output_name) pairs.
 # Clean names mirror the convention used in results/predictions/ so downstream
 # scripts can join pool weights with probe results by name.
+# For runs trained with new commit suffixes (seeds 789/2024 trained on
+# fca361a) we use a glob pattern; resolve_ckpt picks the newest match.
 CHECKPOINTS=(
   "wavlm_erm:wavlm_erm_seed42"
   "wavlm_erm_seed123_5223811:wavlm_erm_seed123"
   "wavlm_erm_seed456_5223811:wavlm_erm_seed456"
+  "wavlm_erm_seed789_*:wavlm_erm_seed789"
+  "wavlm_erm_seed2024_*:wavlm_erm_seed2024"
   "wavlm_dann_seed42_v2_1e2d5c7:wavlm_dann_seed42_v2"
   "wavlm_dann_seed123_5223811:wavlm_dann_seed123"
   "wavlm_dann_seed456_5223811:wavlm_dann_seed456"
+  "wavlm_dann_seed789_*:wavlm_dann_seed789"
+  "wavlm_dann_seed2024_*:wavlm_dann_seed2024"
   "w2v2_erm:w2v2_erm_seed42"
   "w2v2_erm_seed123_5223811:w2v2_erm_seed123"
   "w2v2_erm_seed456_5223811:w2v2_erm_seed456"
+  "w2v2_erm_seed789_*:w2v2_erm_seed789"
+  "w2v2_erm_seed2024_*:w2v2_erm_seed2024"
   "w2v2_dann_seed42_v2_1e2d5c7:w2v2_dann_seed42_v2"
   "w2v2_dann_seed123_5223811:w2v2_dann_seed123"
   "w2v2_dann_seed456_5223811:w2v2_dann_seed456"
+  "w2v2_dann_seed789_*:w2v2_dann_seed789"
+  "w2v2_dann_seed2024_*:w2v2_dann_seed2024"
 )
+
+resolve_ckpt() {
+  # Resolve "${RUNS_BASE}/${pattern}/checkpoints/best.pt", taking the
+  # most-recently-modified match if the pattern is a glob.
+  local pattern="$1"
+  local matches
+  matches=$(ls -1t "${RUNS_BASE}/${pattern}/checkpoints/best.pt" 2>/dev/null || true)
+  if [[ -z "$matches" ]]; then
+    echo ""
+  else
+    echo "$matches" | head -1
+  fi
+}
 
 echo "=== Extracting pool weights from ${#CHECKPOINTS[@]} checkpoints ==="
 echo "Runs base:  $RUNS_BASE"
@@ -53,15 +76,15 @@ echo ""
 for entry in "${CHECKPOINTS[@]}"; do
   src_name="${entry%%:*}"
   out_name="${entry##*:}"
-  ckpt="${RUNS_BASE}/${src_name}/checkpoints/best.pt"
+  ckpt=$(resolve_ckpt "$src_name")
   out_path="${OUT_DIR}/${out_name}.json"
 
   if [[ -f "$out_path" ]]; then
     echo "SKIP  $out_name (already exists)"
     continue
   fi
-  if [[ ! -f "$ckpt" ]]; then
-    echo "WARN  missing checkpoint: $ckpt" >&2
+  if [[ -z "$ckpt" || ! -f "$ckpt" ]]; then
+    echo "WARN  no checkpoint match for: ${RUNS_BASE}/${src_name}/checkpoints/best.pt" >&2
     continue
   fi
 

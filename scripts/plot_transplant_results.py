@@ -58,7 +58,7 @@ MODE_LABELS = {
     "layer_patch_hidden":     "Hidden\nstates",
 }
 BACKBONES = ["wavlm", "w2v2"]
-SEED_TAGS = ["seed42", "seed123", "seed456"]
+SEED_TAGS = ["seed42", "seed123", "seed456", "seed789", "seed2024"]
 BACKBONE_LABEL = {"wavlm": "WavLM", "w2v2": "Wav2Vec 2.0"}
 
 

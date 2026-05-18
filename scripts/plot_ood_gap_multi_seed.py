@@ -2,7 +2,7 @@
 """Multi-seed out-of-distribution gap figure.
 
 Paired dev / eval EER bars per (backbone, method), with mean +/- std error
-bars across 3 training seeds and per-seed scatter dots overlaid.
+bars across 5 training seeds and per-seed scatter dots overlaid.
 Terracotta (ERM) / teal (DANN) palette, dev = lighter shade, eval = bold
 shade. Matches the RQ4 mechanism plots.
 
@@ -40,11 +40,13 @@ COLORS = {
 }
 
 # (clean-name, backbone, method, seed-label) per column on the x-axis
+ERM_SEEDS  = ["seed42",    "seed123", "seed456", "seed789", "seed2024"]
+DANN_SEEDS = ["seed42_v2", "seed123", "seed456", "seed789", "seed2024"]
 GROUPS = [
-    ("WavLM\nERM",   "wavlm", "erm",  ["seed42", "seed123", "seed456"]),
-    ("WavLM\nDANN",  "wavlm", "dann", ["seed42_v2", "seed123", "seed456"]),
-    ("W2V2\nERM",    "w2v2",  "erm",  ["seed42", "seed123", "seed456"]),
-    ("W2V2\nDANN",   "w2v2",  "dann", ["seed42_v2", "seed123", "seed456"]),
+    ("WavLM\nERM",   "wavlm", "erm",  ERM_SEEDS),
+    ("WavLM\nDANN",  "wavlm", "dann", DANN_SEEDS),
+    ("W2V2\nERM",    "w2v2",  "erm",  ERM_SEEDS),
+    ("W2V2\nDANN",   "w2v2",  "dann", DANN_SEEDS),
 ]
 
 # W2V2 ERM seed-42 dev EER is not in the cluster metrics_train.json

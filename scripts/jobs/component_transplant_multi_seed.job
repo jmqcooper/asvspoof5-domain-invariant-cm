@@ -4,7 +4,7 @@
 #SBATCH --job-name=CompTransplant
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
-#SBATCH --time=24:00:00
+#SBATCH --time=40:00:00
 #SBATCH --output=./scripts/jobs/out/%x_%j.out
 
 # =============================================================================
@@ -79,15 +79,33 @@ echo ""
 # 1. Component transplant for each (backbone, seed) pair
 # -----------------------------------------------------------------------------
 #
-# (erm_run, dann_run, prefix)
+# (erm_run_or_glob, dann_run_or_glob, prefix).
+# Globs for seeds 789/2024 trained on commit fca361a.
 PAIRS=(
   "wavlm_erm:wavlm_dann_seed42_v2_1e2d5c7:wavlm_seed42"
   "wavlm_erm_seed123_5223811:wavlm_dann_seed123_5223811:wavlm_seed123"
   "wavlm_erm_seed456_5223811:wavlm_dann_seed456_5223811:wavlm_seed456"
+  "wavlm_erm_seed789_*:wavlm_dann_seed789_*:wavlm_seed789"
+  "wavlm_erm_seed2024_*:wavlm_dann_seed2024_*:wavlm_seed2024"
   "w2v2_erm:w2v2_dann_seed42_v2_1e2d5c7:w2v2_seed42"
   "w2v2_erm_seed123_5223811:w2v2_dann_seed123_5223811:w2v2_seed123"
   "w2v2_erm_seed456_5223811:w2v2_dann_seed456_5223811:w2v2_seed456"
+  "w2v2_erm_seed789_*:w2v2_dann_seed789_*:w2v2_seed789"
+  "w2v2_erm_seed2024_*:w2v2_dann_seed2024_*:w2v2_seed2024"
 )
+
+resolve_run_name() {
+  # Given "<RUNS_DIR>" and a pattern (literal or glob), return the basename
+  # of the newest matching run dir, or empty if no match.
+  local pattern="$1"
+  if [[ "$pattern" != *"*"* ]]; then
+    [[ -d "$RUNS_DIR/$pattern" ]] && echo "$pattern" || echo ""
+    return
+  fi
+  local match
+  match=$(ls -dt "$RUNS_DIR"/$pattern 2>/dev/null | head -1)
+  [[ -z "$match" ]] && echo "" || basename "$match"
+}
 
 # Shared RQ4 parameters (kept consistent with original single-pair run so
 # numbers are directly comparable to the existing seed-42 results).
@@ -100,10 +118,13 @@ export RQ4_RUN_ALL_MODES=${RQ4_RUN_ALL_MODES:-true}
 export RQ4_OUTPUT_DIR="$OUT_BASE"
 
 for entry in "${PAIRS[@]}"; do
-  erm_run="${entry%%:*}"
+  erm_pat="${entry%%:*}"
   rest="${entry#*:}"
-  dann_run="${rest%%:*}"
+  dann_pat="${rest%%:*}"
   prefix="${rest#*:}"
+
+  erm_run=$(resolve_run_name "$erm_pat")
+  dann_run=$(resolve_run_name "$dann_pat")
 
   results_csv="$OUT_BASE/${prefix}_results_summary.csv"
   if [[ -f "$results_csv" ]]; then
@@ -111,12 +132,12 @@ for entry in "${PAIRS[@]}"; do
     continue
   fi
 
-  if [[ ! -f "$RUNS_DIR/$erm_run/checkpoints/best.pt" ]]; then
-    echo "WARN  missing ERM checkpoint for $prefix: $RUNS_DIR/$erm_run/checkpoints/best.pt" >&2
+  if [[ -z "$erm_run" || ! -f "$RUNS_DIR/$erm_run/checkpoints/best.pt" ]]; then
+    echo "WARN  missing ERM checkpoint for $prefix: pattern=$erm_pat" >&2
     continue
   fi
-  if [[ ! -f "$RUNS_DIR/$dann_run/checkpoints/best.pt" ]]; then
-    echo "WARN  missing DANN checkpoint for $prefix: $RUNS_DIR/$dann_run/checkpoints/best.pt" >&2
+  if [[ -z "$dann_run" || ! -f "$RUNS_DIR/$dann_run/checkpoints/best.pt" ]]; then
+    echo "WARN  missing DANN checkpoint for $prefix: pattern=$dann_pat" >&2
     continue
   fi
 

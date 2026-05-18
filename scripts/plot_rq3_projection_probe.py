@@ -39,8 +39,8 @@ COLORS = {
     "w2v2_dann":  "#8EC6B4",  # teal (light)
 }
 
-ERM_SEEDS = ["seed42", "seed123", "seed456"]
-DANN_SEEDS = ["seed42_v2", "seed123", "seed456"]
+ERM_SEEDS = ["seed42", "seed123", "seed456", "seed789", "seed2024"]
+DANN_SEEDS = ["seed42_v2", "seed123", "seed456", "seed789", "seed2024"]
 CHANCE = 1.0 / 12  # 12 codec classes
 
 

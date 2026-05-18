@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Aggregate per-codec EER and minDCF across seeds {42,123,456} for the
-six main deep models, then emit Markdown + LaTeX tables.
+"""Aggregate per-codec EER and minDCF across seeds {42,123,456,789,2024}
+for the six main deep models, then emit Markdown + LaTeX tables.
 
 Outputs:
     figures/tables/T2_per_codec_eer_seeds.md / .tex
@@ -19,7 +19,7 @@ PRED = ROOT / "results" / "predictions"
 OUT_TABLES = ROOT / "figures" / "tables"
 OUT_CSV = ROOT / "results" / "per_codec_seeds_summary.csv"
 
-SEEDS = [42, 123, 456]
+SEEDS = [42, 123, 456, 789, 2024]
 # Models that used a "_v2_eval" suffix on seed 42
 V2_MODELS = {"wavlm_dann", "wavlm_erm_aug", "w2v2_dann", "w2v2_erm_aug"}
 MODELS = [
@@ -117,30 +117,31 @@ def main() -> None:
         metric="eer",
         scale=100.0,
         prec=2,
-        caption="Per-codec EER (\\%) on Eval set, mean $\\pm$ std over seeds \\{42, 123, 456\\}",
+        caption=f"Per-codec EER (\\%) on Eval set, mean $\\pm$ std over {len(SEEDS)} seeds \\{{{', '.join(str(s) for s in SEEDS)}\\}}",
         basename="T2_per_codec_eer_seeds",
     )
     write_table(
         metric="min_dcf",
         scale=1.0,
         prec=3,
-        caption="Per-codec minDCF on Eval set, mean $\\pm$ std over seeds \\{42, 123, 456\\}",
+        caption=f"Per-codec minDCF on Eval set, mean $\\pm$ std over {len(SEEDS)} seeds \\{{{', '.join(str(s) for s in SEEDS)}\\}}",
         basename="T2_per_codec_mindcf_seeds",
     )
 
     # ---- long-form CSV with raw + summary ----
+    seed_cols = [f"seed{s}" for s in SEEDS]
     with OUT_CSV.open("w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["model", "codec", "metric", "seed42", "seed123", "seed456", "mean", "std"])
+        w.writerow(["model", "codec", "metric"] + seed_cols + ["mean", "std"])
         for model, _ in MODELS:
             for codec in CODEC_ORDER:
                 for metric in ("eer", "min_dcf"):
                     vs = data[model][codec][metric]
-                    w.writerow([
-                        model, codec, metric,
-                        f"{vs[0]:.6f}", f"{vs[1]:.6f}", f"{vs[2]:.6f}",
-                        f"{mean(vs):.6f}", f"{stdev(vs):.6f}",
-                    ])
+                    w.writerow(
+                        [model, codec, metric]
+                        + [f"{v:.6f}" for v in vs]
+                        + [f"{mean(vs):.6f}", f"{stdev(vs):.6f}"]
+                    )
 
     print(f"Wrote: {OUT_TABLES / 'T2_per_codec_eer_seeds.md'}")
     print(f"Wrote: {OUT_TABLES / 'T2_per_codec_mindcf_seeds.md'}")

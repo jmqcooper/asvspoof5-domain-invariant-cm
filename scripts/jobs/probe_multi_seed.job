@@ -90,10 +90,18 @@ CHECKPOINTS=(
 )
 
 resolve_ckpt() {
+  # Unquoted glob expansion: "*" inside double quotes is literal.
   local pattern="$1"
-  local matches
-  matches=$(ls -1t "${RUNS_BASE}/${pattern}/checkpoints/best.pt" 2>/dev/null || true)
-  [[ -z "$matches" ]] && echo "" || echo "$matches" | head -1
+  local -a candidates
+  shopt -s nullglob
+  # shellcheck disable=SC2206
+  candidates=( ${RUNS_BASE}/${pattern}/checkpoints/best.pt )
+  shopt -u nullglob
+  if (( ${#candidates[@]} == 0 )); then
+    echo ""
+  else
+    ls -1t "${candidates[@]}" 2>/dev/null | head -1
+  fi
 }
 
 echo "=== Probing ${#CHECKPOINTS[@]} checkpoints ==="

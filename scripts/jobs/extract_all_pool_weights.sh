@@ -58,13 +58,19 @@ CHECKPOINTS=(
 resolve_ckpt() {
   # Resolve "${RUNS_BASE}/${pattern}/checkpoints/best.pt", taking the
   # most-recently-modified match if the pattern is a glob.
+  # Variables must be unquoted at the glob site so bash performs
+  # pathname expansion; otherwise "*" is treated literally.
   local pattern="$1"
-  local matches
-  matches=$(ls -1t "${RUNS_BASE}/${pattern}/checkpoints/best.pt" 2>/dev/null || true)
-  if [[ -z "$matches" ]]; then
+  local -a candidates
+  shopt -s nullglob
+  # shellcheck disable=SC2206
+  candidates=( ${RUNS_BASE}/${pattern}/checkpoints/best.pt )
+  shopt -u nullglob
+  if (( ${#candidates[@]} == 0 )); then
     echo ""
   else
-    echo "$matches" | head -1
+    # Sort by mtime (newest first), keep first
+    ls -1t "${candidates[@]}" 2>/dev/null | head -1
   fi
 }
 

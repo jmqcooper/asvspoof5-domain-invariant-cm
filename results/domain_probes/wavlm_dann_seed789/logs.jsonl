@@ -1,0 +1,16 @@
+{"timestamp": "2026-05-18T16:17:21.024484Z", "level": "INFO", "logger": "__main__", "message": "Output directory: results/domain_probes/wavlm_dann_seed789"}
+{"timestamp": "2026-05-18T16:17:22.999551Z", "level": "INFO", "logger": "__main__", "message": "Git commit: c812d684"}
+{"timestamp": "2026-05-18T16:17:28.029824Z", "level": "INFO", "logger": "__main__", "message": "Using 5000 samples for probing"}
+{"timestamp": "2026-05-18T16:17:28.030350Z", "level": "INFO", "logger": "__main__", "message": "\nProcessing model: /projects/prjs1904/runs/wavlm_dann_seed789_fca361a/checkpoints/best.pt"}
+{"timestamp": "2026-05-18T16:17:57.790080Z", "level": "INFO", "logger": "__main__", "message": "model codec label distribution: {0: 351, 1: 361, 2: 327, 3: 380, 4: 384, 5: 280, 6: 341, 7: 327, 8: 287, 9: 330, 10: 330, 11: 1302}"}
+{"timestamp": "2026-05-18T16:17:57.790403Z", "level": "INFO", "logger": "__main__", "message": "model codec_q label distribution: {0: 738, 1: 707, 2: 697, 3: 730, 4: 703, 5: 44, 6: 35, 7: 44, 8: 1302}"}
+{"timestamp": "2026-05-18T16:17:57.790553Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec..."}
+{"timestamp": "2026-05-18T16:38:58.485673Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-05-18T16:38:58.485819Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.7810"}
+{"timestamp": "2026-05-18T16:38:58.485905Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.4048"}
+{"timestamp": "2026-05-18T16:38:58.485984Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec_q..."}
+{"timestamp": "2026-05-18T17:08:27.163393Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-05-18T17:08:27.163553Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.4982"}
+{"timestamp": "2026-05-18T17:08:27.163636Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.3768"}
+{"timestamp": "2026-05-18T17:08:27.166069Z", "level": "INFO", "logger": "__main__", "message": "Saved results: results/domain_probes/wavlm_dann_seed789/probe_results.json"}
+{"timestamp": "2026-05-18T17:08:27.166603Z", "level": "INFO", "logger": "__main__", "message": "\nAll results saved to: results/domain_probes/wavlm_dann_seed789"}

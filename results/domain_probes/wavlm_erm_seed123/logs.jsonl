@@ -1,0 +1,16 @@
+{"timestamp": "2026-04-17T17:08:10.245662Z", "level": "INFO", "logger": "__main__", "message": "Output directory: results/domain_probes/wavlm_erm_seed123"}
+{"timestamp": "2026-04-17T17:08:11.575078Z", "level": "INFO", "logger": "__main__", "message": "Git commit: f1dd51db"}
+{"timestamp": "2026-04-17T17:08:18.206501Z", "level": "INFO", "logger": "__main__", "message": "Using 5000 samples for probing"}
+{"timestamp": "2026-04-17T17:08:18.206928Z", "level": "INFO", "logger": "__main__", "message": "\nProcessing model: /projects/prjs1904/runs/wavlm_erm_seed123_5223811/checkpoints/best.pt"}
+{"timestamp": "2026-04-17T17:08:52.266111Z", "level": "INFO", "logger": "__main__", "message": "model codec label distribution: {0: 351, 1: 361, 2: 327, 3: 380, 4: 384, 5: 280, 6: 341, 7: 327, 8: 287, 9: 330, 10: 330, 11: 1302}"}
+{"timestamp": "2026-04-17T17:08:52.266441Z", "level": "INFO", "logger": "__main__", "message": "model codec_q label distribution: {0: 738, 1: 707, 2: 697, 3: 730, 4: 703, 5: 44, 6: 35, 7: 44, 8: 1302}"}
+{"timestamp": "2026-04-17T17:08:52.266598Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec..."}
+{"timestamp": "2026-04-17T17:30:52.590963Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-04-17T17:30:52.591120Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.7810"}
+{"timestamp": "2026-04-17T17:30:52.591205Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.4432"}
+{"timestamp": "2026-04-17T17:30:52.591281Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec_q..."}
+{"timestamp": "2026-04-17T18:01:59.718494Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-04-17T18:01:59.718685Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.4982"}
+{"timestamp": "2026-04-17T18:01:59.718772Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.3940"}
+{"timestamp": "2026-04-17T18:01:59.721202Z", "level": "INFO", "logger": "__main__", "message": "Saved results: results/domain_probes/wavlm_erm_seed123/probe_results.json"}
+{"timestamp": "2026-04-17T18:01:59.721747Z", "level": "INFO", "logger": "__main__", "message": "\nAll results saved to: results/domain_probes/wavlm_erm_seed123"}

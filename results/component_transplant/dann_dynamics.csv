@@ -1,0 +1,10 @@
+run,status,best_epoch,final_epoch,best_eer,lambda_at_save
+wavlm_dann,missing_metrics,,,,
+wavlm_dann_seed42_v2_1e2d5c7,ok,3,13,0.03335157473007985,0.1
+wavlm_dann_seed123_5223811,ok,2,12,0.035139202807235995,0.0
+wavlm_dann_seed456_5223811,ok,1,11,0.035488063347726855,0.0
+w2v2_dann,missing_metrics,,,,
+w2v2_dann_v2,missing_metrics,,,,
+w2v2_dann_seed42_v2_1e2d5c7,ok,5,15,0.04266821689735009,0.467496
+w2v2_dann_seed123_5223811,ok,7,17,0.04330665549633442,0.608324
+w2v2_dann_seed456_5223811,ok,6,16,0.04247212393975375,0.541679

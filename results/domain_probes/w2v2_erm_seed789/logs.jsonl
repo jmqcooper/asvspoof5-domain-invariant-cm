@@ -1,0 +1,16 @@
+{"timestamp": "2026-05-18T18:00:37.408265Z", "level": "INFO", "logger": "__main__", "message": "Output directory: results/domain_probes/w2v2_erm_seed789"}
+{"timestamp": "2026-05-18T18:00:37.753226Z", "level": "INFO", "logger": "__main__", "message": "Git commit: c812d684"}
+{"timestamp": "2026-05-18T18:00:43.080382Z", "level": "INFO", "logger": "__main__", "message": "Using 5000 samples for probing"}
+{"timestamp": "2026-05-18T18:00:43.080769Z", "level": "INFO", "logger": "__main__", "message": "\nProcessing model: /projects/prjs1904/runs/w2v2_erm_seed789_fca361a/checkpoints/best.pt"}
+{"timestamp": "2026-05-18T18:01:10.885036Z", "level": "INFO", "logger": "__main__", "message": "model codec label distribution: {0: 351, 1: 361, 2: 327, 3: 380, 4: 384, 5: 280, 6: 341, 7: 327, 8: 287, 9: 330, 10: 330, 11: 1302}"}
+{"timestamp": "2026-05-18T18:01:10.885362Z", "level": "INFO", "logger": "__main__", "message": "model codec_q label distribution: {0: 738, 1: 707, 2: 697, 3: 730, 4: 703, 5: 44, 6: 35, 7: 44, 8: 1302}"}
+{"timestamp": "2026-05-18T18:01:10.885511Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec..."}
+{"timestamp": "2026-05-18T18:16:06.568741Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-05-18T18:16:06.568915Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.7554"}
+{"timestamp": "2026-05-18T18:16:06.569001Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.4916"}
+{"timestamp": "2026-05-18T18:16:06.569076Z", "level": "INFO", "logger": "__main__", "message": "  Probing codec_q..."}
+{"timestamp": "2026-05-18T18:41:26.812656Z", "level": "INFO", "logger": "__main__", "message": "    Max leakage layer: 0"}
+{"timestamp": "2026-05-18T18:41:26.812812Z", "level": "INFO", "logger": "__main__", "message": "    Max accuracy: 0.4728"}
+{"timestamp": "2026-05-18T18:41:26.812897Z", "level": "INFO", "logger": "__main__", "message": "    Repr accuracy: 0.4110"}
+{"timestamp": "2026-05-18T18:41:26.815200Z", "level": "INFO", "logger": "__main__", "message": "Saved results: results/domain_probes/w2v2_erm_seed789/probe_results.json"}
+{"timestamp": "2026-05-18T18:41:26.815755Z", "level": "INFO", "logger": "__main__", "message": "\nAll results saved to: results/domain_probes/w2v2_erm_seed789"}

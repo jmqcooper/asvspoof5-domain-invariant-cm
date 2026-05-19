@@ -1,0 +1,13 @@
+{
+  "analysis_type": "domain_probes",
+  "mode": "single",
+  "split": "eval",
+  "n_samples": 5000,
+  "domains": [
+    "codec",
+    "codec_q"
+  ],
+  "classifier": "logistic",
+  "cv_folds": 5,
+  "timestamp": "2026-05-18T20:04:51.835447Z"
+}

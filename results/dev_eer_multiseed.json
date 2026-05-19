@@ -14,6 +14,16 @@
     "best_eer": 0.031559385275022694,
     "run_dir": "wavlm_erm_seed456_5223811"
   },
+  "wavlm_erm_seed789": {
+    "best_epoch": 12,
+    "best_eer": 0.03095514929493809,
+    "run_dir": "wavlm_erm_seed789_fca361a"
+  },
+  "wavlm_erm_seed2024": {
+    "best_epoch": 11,
+    "best_eer": 0.03162779051282216,
+    "run_dir": "wavlm_erm_seed2024_fca361a"
+  },
   "wavlm_dann_seed42_v2": {
     "best_epoch": 3,
     "best_eer": 0.03335157473007985,
@@ -29,6 +39,16 @@
     "best_eer": 0.035488063347726855,
     "run_dir": "wavlm_dann_seed456_5223811"
   },
+  "wavlm_dann_seed789": {
+    "best_epoch": 7,
+    "best_eer": 0.03268349489009682,
+    "run_dir": "wavlm_dann_seed789_fca361a"
+  },
+  "wavlm_dann_seed2024": {
+    "best_epoch": 6,
+    "best_eer": 0.02792940801661406,
+    "run_dir": "wavlm_dann_seed2024_fca361a"
+  },
   "w2v2_erm_seed42": {
     "error": "[Errno 2] No such file or directory: '/gpfs/work5/0/prjs1904/runs/w2v2_erm/metrics_train.json'",
     "run_dir": "w2v2_erm"
@@ -42,6 +62,16 @@
     "best_epoch": 4,
     "best_eer": 0.04381740637552189,
     "run_dir": "w2v2_erm_seed456_5223811"
+  },
+  "w2v2_erm_seed789": {
+    "best_epoch": 7,
+    "best_eer": 0.03954442914022789,
+    "run_dir": "w2v2_erm_seed789_fca361a"
+  },
+  "w2v2_erm_seed2024": {
+    "best_epoch": 4,
+    "best_eer": 0.04327701425533573,
+    "run_dir": "w2v2_erm_seed2024_fca361a"
   },
   "w2v2_dann_seed42_v2": {
     "best_epoch": 5,
@@ -57,5 +87,15 @@
     "best_epoch": 6,
     "best_eer": 0.04247212393975375,
     "run_dir": "w2v2_dann_seed456_5223811"
+  },
+  "w2v2_dann_seed789": {
+    "best_epoch": 10,
+    "best_eer": 0.03979980457982163,
+    "run_dir": "w2v2_dann_seed789_fca361a"
+  },
+  "w2v2_dann_seed2024": {
+    "best_epoch": 8,
+    "best_eer": 0.04174020023987229,
+    "run_dir": "w2v2_dann_seed2024_fca361a"
   }
 }

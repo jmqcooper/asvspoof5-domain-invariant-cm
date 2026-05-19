@@ -16,6 +16,13 @@
 # Override with the SEEDS env var, e.g. to run two new seeds 789 and 2024:
 #   SEEDS="789 2024" sbatch --array=1-2 --export=ALL,SEEDS \\
 #       scripts/jobs/train_multi_seed.job wavlm_dann
+#
+# Optional RUN_SUFFIX env var disambiguates re-runs with a tag, e.g. when
+# re-running the same seeds after a config change like patience=20:
+#   RUN_SUFFIX=_p20 SEEDS="42 123 456" sbatch --array=1-3 \\
+#       --export=ALL,SEEDS,RUN_SUFFIX scripts/jobs/train_multi_seed.job wavlm_dann
+# Produces run_name=wavlm_dann_seed42_p20 etc., so existing predictions/
+# wavlm_dann_seed42_v2_eval/ are not overwritten.
 # =============================================================================
 
 set -euo pipefail
@@ -29,7 +36,11 @@ if (( SLURM_ARRAY_TASK_ID > ${#SEEDS[@]} )); then
   exit 1
 fi
 SEED=${SEEDS[$((SLURM_ARRAY_TASK_ID - 1))]}
-RUN_NAME="${CONFIG}_seed${SEED}"
+
+# Optional RUN_SUFFIX env var (e.g. "_p20") to disambiguate re-runs of the
+# same (config, seed) pair after a config change, so the new run dir and
+# eval predictions don't collide with the earlier ones.
+RUN_NAME="${CONFIG}_seed${SEED}${RUN_SUFFIX:-}"
 
 echo "=== Multi-Seed Training ==="
 echo "Config: ${CONFIG}"

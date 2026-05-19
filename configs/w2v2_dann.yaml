@@ -53,7 +53,9 @@ training:
     min_lr: 1.0e-6
 
   max_epochs: 50
-  patience: 10
+  # patience bumped from 10 to 20 so early stopping cannot fire while the
+  # GRL lambda is still in warmup. See wavlm_dann.yaml for full rationale.
+  patience: 20
   min_delta: 0.001  # Minimum improvement to count as progress (for EER)
   train_loss_threshold: 0.0  # Disable train-loss early stopping for DANN
   plateau_patience: 3  # Consecutive low train loss epochs before early stop
